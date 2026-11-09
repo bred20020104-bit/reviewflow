@@ -1,0 +1,214 @@
+{
+  "cases": [
+    {
+      "case_id": "case-01-a",
+      "group": "index",
+      "split": "dev",
+      "truth_ids": [
+        "off-by-one"
+      ]
+    },
+    {
+      "case_id": "case-01-b",
+      "group": "index",
+      "split": "dev",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-02-a",
+      "group": "average",
+      "split": "dev",
+      "truth_ids": [
+        "empty-division"
+      ]
+    },
+    {
+      "case_id": "case-02-b",
+      "group": "average",
+      "split": "dev",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-03-a",
+      "group": "default",
+      "split": "dev",
+      "truth_ids": [
+        "shared-default"
+      ]
+    },
+    {
+      "case_id": "case-03-b",
+      "group": "default",
+      "split": "dev",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-04-a",
+      "group": "sort",
+      "split": "dev",
+      "truth_ids": [
+        "inplace-return"
+      ]
+    },
+    {
+      "case_id": "case-04-b",
+      "group": "sort",
+      "split": "dev",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-05-a",
+      "group": "boolean",
+      "split": "dev",
+      "truth_ids": [
+        "truthy-string"
+      ]
+    },
+    {
+      "case_id": "case-05-b",
+      "group": "boolean",
+      "split": "dev",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-06-a",
+      "group": "discount",
+      "split": "test",
+      "truth_ids": [
+        "percent-units"
+      ]
+    },
+    {
+      "case_id": "case-06-b",
+      "group": "discount",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-07-a",
+      "group": "auth",
+      "split": "test",
+      "truth_ids": [
+        "authorization-or"
+      ]
+    },
+    {
+      "case_id": "case-07-b",
+      "group": "auth",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-08-a",
+      "group": "sql",
+      "split": "test",
+      "truth_ids": [
+        "sql-concatenation"
+      ]
+    },
+    {
+      "case_id": "case-08-b",
+      "group": "sql",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-09-a",
+      "group": "html",
+      "split": "test",
+      "truth_ids": [
+        "html-injection"
+      ]
+    },
+    {
+      "case_id": "case-09-b",
+      "group": "html",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-10-a",
+      "group": "dedup",
+      "split": "test",
+      "truth_ids": [
+        "order-loss"
+      ]
+    },
+    {
+      "case_id": "case-10-b",
+      "group": "dedup",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-11-a",
+      "group": "range",
+      "split": "test",
+      "truth_ids": [
+        "exclusive-end"
+      ]
+    },
+    {
+      "case_id": "case-11-b",
+      "group": "range",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-12-a",
+      "group": "zero",
+      "split": "test",
+      "truth_ids": [
+        "falsey-default"
+      ]
+    },
+    {
+      "case_id": "case-12-b",
+      "group": "zero",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-13-a",
+      "group": "copy",
+      "split": "test",
+      "truth_ids": [
+        "shallow-copy"
+      ]
+    },
+    {
+      "case_id": "case-13-b",
+      "group": "copy",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-14-a",
+      "group": "remove",
+      "split": "test",
+      "truth_ids": [
+        "mutating-iteration"
+      ]
+    },
+    {
+      "case_id": "case-14-b",
+      "group": "remove",
+      "split": "test",
+      "truth_ids": []
+    },
+    {
+      "case_id": "case-15-a",
+      "group": "minimum",
+      "split": "test",
+      "truth_ids": [
+        "invalid-initial-bound"
+      ]
+    },
+    {
+      "case_id": "case-15-b",
+      "group": "minimum",
+      "split": "test",
+      "truth_ids": []
+    }
+  ]
+}

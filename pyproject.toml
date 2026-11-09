@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reviewflow"
+version = "0.1.0"
+description = "Read-only repository inventory foundation for a multi-agent review assistant"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+reviewflow = "reviewflow.cli:main"
+
+[project.optional-dependencies]
+review = ["pydantic>=2,<3", "langgraph>=1,<2"]
+dev = ["pytest>=8,<10", "ruff>=0.9,<1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"reviewflow.agents" = ["SOUL.md", "roles/*/AGENT.md", "skills/*/SKILL.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

@@ -1,0 +1,10 @@
+# Only this pointer is needed. No model, budget or privacy fields to fill here.
+# Copy secrets.example.toml to secrets.local.toml and chmod 600 secrets.local.toml.
+# All five model/credential values live in that private file.
+# Resolve relative to this explicitly selected config, never a target directory.
+secrets_file = "secrets.local.toml"
+
+# Built-in defaults: $1/run, $0.25/call, 12 calls, 60 seconds/call, no retries,
+# 16000 input / 4000 output tokens. Unknown provider prices block real sends.
+# Scope derives from -d and included inventory files. Upload/telemetry stay disabled.
+# Explicit config-check/prepare read the private file, never print or send the Key.

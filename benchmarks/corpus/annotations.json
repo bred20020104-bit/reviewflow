@@ -1,0 +1,109 @@
+{
+  "defects": [
+    {
+      "case_id": "case-01-a",
+      "truth_id": "off-by-one",
+      "requirement": "Return the last element of a nonempty sequence.",
+      "reference_source": "def last(items):\n    return items[len(items) - 1]\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-02-a",
+      "truth_id": "empty-division",
+      "requirement": "Return the arithmetic mean; return 0 for an empty sequence.",
+      "reference_source": "def average(items):\n    return sum(items) / len(items) if items else 0\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-03-a",
+      "truth_id": "shared-default",
+      "requirement": "Each call without a list must return an independent one-element list.",
+      "reference_source": "def collect(value, items=None):\n    items = [] if items is None else items\n    items.append(value)\n    return items\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-04-a",
+      "truth_id": "inplace-return",
+      "requirement": "Return a sorted copy without mutating the input list.",
+      "reference_source": "def ordered(items):\n    return sorted(items)\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-05-a",
+      "truth_id": "truthy-string",
+      "requirement": "Parse exactly 'true' as True and 'false' as False; reject other text.",
+      "reference_source": "def parse_bool(text):\n    if text not in ('true', 'false'):\n        raise ValueError('invalid boolean')\n    return text == 'true'\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-06-a",
+      "truth_id": "percent-units",
+      "requirement": "A 20 percent discount on price 100 must return 80. Percent is in [0,100].",
+      "reference_source": "def discount(price, percent):\n    return price * (1 - percent / 100)\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-07-a",
+      "truth_id": "authorization-or",
+      "requirement": "Grant access only when both the active and admin flags are True.",
+      "reference_source": "def allowed(active, admin):\n    return active and admin\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-08-a",
+      "truth_id": "sql-concatenation",
+      "requirement": "Look up a name using a DB-API SQLite connection; names are arbitrary user input.",
+      "reference_source": "def lookup(connection, name):\n    return connection.execute('SELECT id FROM users WHERE name = ?', (name,)).fetchall()\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-09-a",
+      "truth_id": "html-injection",
+      "requirement": "Render arbitrary user text as text inside a div, never as HTML markup.",
+      "reference_source": "import html\n\ndef render(text):\n    return '<div>' + html.escape(text) + '</div>'\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-10-a",
+      "truth_id": "order-loss",
+      "requirement": "Remove duplicates while preserving the first occurrence order of hashable items.",
+      "reference_source": "def unique(items):\n    return list(dict.fromkeys(items))\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-11-a",
+      "truth_id": "exclusive-end",
+      "requirement": "Return every integer from start through end, including both endpoints.",
+      "reference_source": "def inclusive(start, end):\n    return list(range(start, end + 1))\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-12-a",
+      "truth_id": "falsey-default",
+      "requirement": "Use default only for None; zero, False and empty strings must be preserved.",
+      "reference_source": "def choose(value, default):\n    return default if value is None else value\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-13-a",
+      "truth_id": "shallow-copy",
+      "requirement": "Return a new independent nested configuration so editing it never changes input.",
+      "reference_source": "import copy\n\ndef clone(config):\n    return copy.deepcopy(config)\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-14-a",
+      "truth_id": "mutating-iteration",
+      "requirement": "Return all nonzero numbers from a list without changing the input.",
+      "reference_source": "def nonzero(items):\n    return [item for item in items if item != 0]\n",
+      "origin": "self-authored artificial fixture"
+    },
+    {
+      "case_id": "case-15-a",
+      "truth_id": "invalid-initial-bound",
+      "requirement": "Return the minimum of a nonempty list, including all-positive inputs.",
+      "reference_source": "def minimum(items):\n    result = items[0]\n    for value in items:\n        result = min(result, value)\n    return result\n",
+      "origin": "self-authored artificial fixture"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# Minimal patching skill
+
+1. Reconstruct the selected finding's trigger and root cause from cited source. Do not silently broaden the task to nearby issues.
+2. Choose the smallest correction preserving public contracts and unrelated behavior. Reason about empty/boundary inputs, exceptions and state transitions affected by the change.
+3. Replace only existing evidence-cited ordinary .py files allowed by the controller. Preserve file paths and exact original before_sha256, snapshot_id and finding_id. Follow the supplied schema: complete replacement content for PatchProposal, or minimal exact old_text/new_text pairs for EditProposal. All edit matches refer to the same original current file; preserve whitespace exactly, require unique nonoverlapping matches and avoid no-ops. Never return a unified diff or a shell command. Respect the schema and at-most-five-file cap.
+4. Never edit tests, configuration, dependencies, build/startup scripts or migrations. Never add hidden networking, new dependencies, logging of secrets or execution side effects as a workaround.
+5. Explain which root cause the candidate addresses and any unverified assumptions. A proposal remains unvalidated until trusted validation and re-review complete; do not claim tests ran or the repair was applied. verification_failed feedback permits reconsidering the same scoped finding, not bypassing guards or enlarging permissions.

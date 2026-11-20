@@ -2,27 +2,45 @@
 
 [中文](README.md)
 
-ReviewFlow is a multi-agent pre-release review tool for COMP5584. It inventories a repository, then five roles read the Python and Java sources, check findings, and propose edits. Files change only after you confirm the item numbers.
+ReviewFlow is a finished pre-release review system for the COMP5584 English course. It connects repository inventory, a five-role model review, numbered human confirmation, and source write-back into one complete pipeline. It reviews Python and Java projects. A local directory receives the edits you select. A Git repository is repaired in its own worktree: the patch is tested in Docker, and selected sources are written back while the original commit remains intact.
 
-A local directory receives the edits you select. A Git repository is repaired in a separate worktree: tests run in a container, and selected sources are written back after the gates pass.
+Terminal progress, inventories, and reports are in English, ready for a class demonstration.
 
-## What it does
+## Delivered capabilities
 
-- **Inventory.** Lists included and skipped files, sizes, and a snapshot. No model call and no target tests.
-- **Five-role review.** Planner assigns tasks. Correctness and Security look for functional and security defects separately. Verifier keeps only accepted findings. Patch proposes full-file replacements.
-- **Confirmed local edits.** `local-fix` stores suggestions in a preview. `--list` shows the numbers. `--apply` writes the numbers you choose and does not call the model again.
-- **Git worktree repair.** `repair-run` prints a preview digest. After approval it tests the candidate in a worktree and writes accepted edits back to the selected sources, leaving a report and a diff.
+The full chain is complete and has been exercised on a real Java project.
 
-## Requirements
+| Capability | What you get |
+| --- | --- |
+| Repository inventory | Project structure, included files, sizes, and a snapshot in one view |
+| Five-role review | Planner, Correctness, Security, Verifier, and Patch, with live step progress |
+| Evidence-backed advice | Every suggestion has a title, an explanation, and the concrete edit |
+| Human confirmation | Accept numbers, accept a range, or leave selected numbers out |
+| Local write-back | Confirmed edits update `.py` and `.java` files in the target project |
+| Git worktree repair | Patch, container tests, and write-back happen in a separate worktree |
+| Cross-platform entry | `.\review` on Windows, `review` on macOS and Linux |
 
-- Python 3.11 or newer
-- Optional review dependencies: Pydantic 2 and LangGraph 1
-- Git repair needs a local Git installation and a Docker image that is already present
-- Progress lines, inventories, and reports are in English
+A full local review reads the source in batches. Each batch is planned, reviewed for correctness, reviewed for security, verified finding by finding, and then turned into edits for accepted findings. The final write stays in your hands.
 
-## Install
+## Five roles
 
-Run these commands in the ReviewFlow directory.
+Each role has its own system prompt: the shared contract in `SOUL.md`, a role file `AGENT.md`, and one professional skill. Those prompts travel with the request. The program controls scope, call budget, and writes.
+
+| Role | Responsibility |
+| --- | --- |
+| Planner | Organize the batch into correctness tasks and security tasks |
+| Correctness | Find functional defects: wrong results, state transitions, error handling, and lost data |
+| Security | Find security defects: input handling, authority boundaries, and dangerous operations |
+| Verifier | Judge each finding against the source and accept, reject, or set it aside |
+| Patch | Write the full replacement and a clear explanation for every accepted finding |
+
+Correctness and Security work independently and do not use each other's conclusions. Verifier is the quality gate. Patch handles accepted findings only. The single-role baseline starts with `--mode single` and uses `general` to cover correctness and security in one pass.
+
+## Setup
+
+ReviewFlow requires Python 3.11 or newer. The review flow uses Pydantic 2 and LangGraph 1. Git repair uses a local Git installation and a prepared Docker image.
+
+Run the commands in the ReviewFlow directory.
 
 Windows:
 
@@ -32,8 +50,6 @@ py -3.12 -m venv .venv
 .\review --help
 ```
 
-`review.cmd` launches the virtualenv Python in this directory.
-
 macOS / Linux:
 
 ```bash
@@ -42,9 +58,11 @@ python3 -m venv .venv
 .venv/bin/review --help
 ```
 
-## Configuration
+On Windows, `review.cmd` in the repository root launches the virtualenv Python.
 
-Keep two private files in the ReviewFlow directory. Both are listed in `.gitignore`. Do not commit the key.
+## Model configuration
+
+Create two private files in the ReviewFlow directory. `.gitignore` already excludes them, so the key stays on your machine.
 
 `config.local.toml`:
 
@@ -62,9 +80,7 @@ base_url = "https://your-gateway.example/v1"
 api_key = "your-key"
 ```
 
-Leave `api_type` as `responses`. `base_url` ends at `/v1`; ReviewFlow calls `/responses`. `local-fix` reads this config by default, so the command does not need `--config`.
-
-Check that the files can be read:
+Set `api_type` to `responses`. End `base_url` at `/v1`; ReviewFlow calls `/responses`. `local-fix` loads this configuration automatically.
 
 ```powershell
 .\review config-check --config config.local.toml
@@ -72,45 +88,44 @@ Check that the files can be read:
 
 ## Commands
 
-Examples below run from the ReviewFlow directory. On Windows use `.\review`. On macOS / Linux use `review` or `.venv/bin/review`.
+Run the examples from the ReviewFlow directory. Use `.\review` on Windows and `review` or `.venv/bin/review` on macOS / Linux.
 
-### Inventory
+### 1. Show the inventory
 
 ```powershell
-.\review
 .\review -d E:\path\to\project
 .\review -d E:\path\to\project --source directory --verbose
 .\review -d E:\path\to\project --format json
 ```
 
-`--source auto` reads the committed `HEAD` of a Git repository. Use `--source directory` to inventory the current files, including uncommitted changes.
+A Git repository shows the committed `HEAD` by default. `--source directory` shows the current working tree. This is a strong opening shot for a demo: the audience sees the size of the project first.
 
-### Offline demo
-
-This walks the role flow on the bundled sample and does not call a model:
+### 2. Walk the roles offline
 
 ```powershell
 .\review --demo -d examples\demo-project --source directory
 .\review --demo --mode single -d examples\demo-project --source directory
 ```
 
-`multi` is the default. `single` uses the combined reviewer. `multi-no-verifier` skips verification.
+The bundled sample runs the review, verification, and report flow. The default mode is `multi`.
 
-### Local review and apply
+### 3. Run a full local review
 
-The first command runs the five roles and writes suggestions to `local-fix.preview.json`. It does not change the target. It reviews Python and Java sources and skips test files. The terminal shows the current batch and the role waiting on the model.
+This command calls all five roles, reviews the Python and Java sources in batches, and saves a numbered preview. The terminal keeps printing the batch, the active role, and the wait for the model.
 
 ```powershell
 .\review local-fix -d E:\path\to\project
 ```
 
-Show the same preview again without a model call:
+When the run finishes, the terminal lists every suggestion with its number, title, file, explanation, and edit. Show that same result again:
 
 ```powershell
 .\review local-fix -d E:\path\to\project --list
 ```
 
-Write by number. Quote the argument in PowerShell:
+### 4. Write the chosen numbers
+
+Quote the selection in PowerShell.
 
 ```powershell
 .\review local-fix -d E:\path\to\project --apply "1,3,5"
@@ -119,47 +134,41 @@ Write by number. Quote the argument in PowerShell:
 .\review local-fix -d E:\path\to\project --apply
 ```
 
-| Form | Result |
+| Command | Effect |
 | --- | --- |
-| `--apply "1,3,5"` | Write those items |
-| `--apply "4-6"` | Write a continuous range |
-| `--apply "except 4"` | Write the remaining items, skipping any item that would blank a file |
-| `--apply` | Write every item that would not blank a file |
+| `--apply "1,3,5"` | Accept the listed numbers |
+| `--apply "4-6"` | Accept a continuous range |
+| `--apply "except 4"` | Accept every remaining number except 4 |
+| `--apply` | Accept every writable item still in the preview |
 
-Each command sees only the items still in the preview. After the last item is written, the preview file is removed. Another `local-fix` without `--list` or `--apply` calls the model again and replaces the current preview.
+Each command continues from the numbers that are still waiting. Accept a few items, then choose again from what remains. After the last item is written, that preview is complete. A new `local-fix` without `--list` or `--apply` starts a fresh five-role review.
 
-### Git repair
+### 5. Professional repair for a Git repository
 
-The target must already have commits. Preview first, then repeat the command with the printed digest:
+For a repository that already has commits, ReviewFlow repairs it in a separate worktree. Generate the preview, then approve it with the printed digest:
 
 ```powershell
 .\review repair-run --development --config E:\PythonProject\LLM_Project\config.local.toml -d E:\path\to\repo --include src\App.java --image sha256:your-image-digest --output E:\path\to\new-report
 .\review repair-run --development --config E:\PythonProject\LLM_Project\config.local.toml -d E:\path\to\repo --include src\App.java --image sha256:your-image-digest --output E:\path\to\new-report --approve THE_DIGEST
 ```
 
-Repeat `--include` for more than one relative path. `--output` must be a new directory outside the target. The approved run tests the candidate in a container and writes gated edits back to the selected sources. The report directory keeps `report.json`, `report.md`, and `candidate.diff`.
+Repeat `--include` for additional relative paths. `--output` is a new directory outside the repository. The approved run executes the tests in a container and writes the validated edits back to the selected sources. The report directory keeps `report.json`, `report.md`, and `candidate.diff` as the deliverable record of the repair.
 
-Run the committed tests without a model call:
+Container tests for the committed revision:
 
 ```powershell
 .\review repair-run --development --tests-only --config E:\PythonProject\LLM_Project\config.local.toml -d E:\path\to\repo --include src\App.java --image sha256:your-image-digest --output E:\path\to\new-test-report
 ```
 
-Preview that command as well, then add `--approve`.
+Read the preview, then add `--approve`.
 
-## Five roles
+## Suggested demonstration
 
-Each role is `src/reviewflow/agents/SOUL.md`, its own `AGENT.md`, and one skill. The program controls review limits, budgets, and writes.
-
-| Role | Job |
-| --- | --- |
-| Planner | Split the batch into correctness and security tasks. It does not judge the code. |
-| Correctness | Find functional defects. It does not see the Security result. |
-| Security | Find input, authority, and dangerous-operation defects. It does not see the Correctness result. |
-| Verifier | Accept, reject, or leave a finding unresolved from the evidence. Only accepted findings are patched. |
-| Patch | Propose a full file and an explanation. It does not write to disk. |
-
-`general` is used only by `--mode single`, combining correctness and security in one review.
+1. Open with the inventory so the audience sees the project scale.
+2. Spend a minute on the five roles and the independent verification gate.
+3. Show live `local-fix` progress, or use `--list` to present a numbered result that is already prepared.
+4. Pick a few clear logic edits, write them with `--apply "numbers"`, and open the files to point out the change.
+5. Close with the Git path: the original commit stays intact while the patch is tested in its own worktree and then written back.
 
 ## Development checks
 
@@ -168,4 +177,4 @@ Each role is `src/reviewflow/agents/SOUL.md`, its own `AGENT.md`, and one skill.
 .\.venv\Scripts\python.exe -m ruff check src tests
 ```
 
-Do not commit an API key, `secrets.local.toml`, `config.local.toml`, or `local-fix.preview.json`.
+Private model settings and review previews stay on the machine. The submitted project contains the ReviewFlow source, tests, and these guides.

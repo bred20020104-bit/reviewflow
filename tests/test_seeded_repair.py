@@ -89,11 +89,11 @@ def test_seed_report_renders_stage_and_report_supplied_accounting(seed_input):
                                 RepairFixtureAdapter(config.model), seed=seed)
     result.update(preview=preview, report_directory=str(plan.destination.parent / "report"))
     text = _markdown(result)
-    assert "/ seed：" in text
-    assert "历史用量由旧报告提供，未经认证" in text
+    assert "/ seed:" in text
+    assert "Historical usage comes from the old report and is not certified" in text
     cumulative = result["cumulative_reported_accounting"]
-    assert f"累计请求尝试：{cumulative['requests_attempted']}" in text
-    assert "累计补丁成员尝试：1" in text
+    assert f"Cumulative requests attempted: {cumulative['requests_attempted']}" in text
+    assert "Cumulative patch-member attempts: 1" in text
 
 
 @pytest.mark.parametrize("verdict", ["accepted", "unresolved"])
@@ -131,7 +131,7 @@ def test_seed_remaining_findings_use_fresh_source_and_grouped_repair(seed_input)
 
     plan, old, path, report = seed_input
     partial = "old\n# synthetic seed progress\n"
-    (old.path / "a.py").write_text(partial)
+    (old.path / "a.py").write_bytes(partial.encode())
     report["test_runs"][-1]["content_digest"] = content_digest(dict(plan.baseline) | {"a.py": partial.encode()})
     path.write_text(json.dumps(report))
 

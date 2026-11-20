@@ -2,12 +2,12 @@
 
 import json
 import os
-import stat
 from dataclasses import dataclass
 from pathlib import Path
 
 from reviewflow.backend.approval import fingerprint
 from reviewflow.backend.live_patch import live_editable
+from reviewflow.backend.nofollow import mode_matches
 from reviewflow.backend.repair import RepairError, Replacement
 from reviewflow.backend.repair_candidate import _identity, _read, _sha
 from reviewflow.backend.validation import content_digest
@@ -104,7 +104,7 @@ class SeedPlan:
             actual, replacements, total = {}, [], 0
             for path, before in plan.baseline:
                 data, _, signature = _absolute_read(candidate_path / path)
-                if stat.S_IMODE(signature[2]) != modes[path]:
+                if not mode_matches(signature[2], modes[path]):
                     raise ValueError("Seed mode changed")
                 actual[path] = data
                 if data == before:

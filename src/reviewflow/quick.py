@@ -19,8 +19,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="review",
         allow_abbrev=False,
-        description="ReviewFlow 项目文件盘点（尚不执行 AI 审查或目标测试）",
-        epilog="示例: review | review -d /path/to/project | review --source directory --verbose",
+        description="ReviewFlow repository inventory (no AI review or target tests yet)",
+        epilog="Examples: review | review -d /path/to/project | review --source directory --verbose",
     )
     parser.add_argument(
         "-d",
@@ -28,31 +28,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         dest="path",
         type=Path,
         default=Path("."),
-        help="项目目录，默认当前目录；不是版本选择",
+        help="Project directory. Defaults to the current directory; this is not a version selector",
     )
     parser.add_argument("--version", action="version", version=f"ReviewFlow {__version__}")
     operation = parser.add_mutually_exclusive_group()
-    operation.add_argument("--demo", action="store_true", help="离线模拟审查流程，不调用模型")
+    operation.add_argument("--demo", action="store_true", help="Offline simulated review; no model call")
     operation.add_argument(
-        "--review", action="store_true", help="显式真实只读开发审查；先预览再授权"
+        "--review", action="store_true", help="Explicit live read-only development review; preview, then approve"
     )
     parser.add_argument(
-        "--development", action="store_true", help="允许有界开发测试，HTTP/金额未知"
+        "--development", action="store_true", help="Allow bounded development testing; HTTP and cost are unknown"
     )
-    parser.add_argument("--config", type=Path, help="可信工具配置，不从目标自动发现")
-    parser.add_argument("--include", action="append", help="只发送指定纳入文件，可重复")
-    parser.add_argument("--output", type=Path, help="目标之外的全新报告目录")
-    parser.add_argument("--approve", help="批准本次预览摘要绑定的有界运行")
+    parser.add_argument("--config", type=Path, help="Trusted tool config. Never discovered inside the target")
+    parser.add_argument("--include", action="append", help="Send only this included file; repeat for more")
+    parser.add_argument("--output", type=Path, help="A new report directory outside the target")
+    parser.add_argument("--approve", help="Approve the bounded run bound to this preview digest")
     parser.add_argument(
         "--max-calls",
         type=int,
         choices=range(1, 9),
-        help="仅真实开发审查：降低本次调用上限（1–8），默认8；计入预览授权",
+        help="Live review only: lower this run's call cap (1-8). Default 8. Included in the preview grant",
     )
     parser.add_argument(
         "--mode",
         choices=("single", "multi", "multi-no-verifier"),
-        help="用于 --demo 或 --review；默认 multi；multi-no-verifier 为无复核消融",
+        help="For --demo or --review. Default multi. multi-no-verifier omits verification",
     )
     add_scan_options(parser, default_format="text")
     try:
@@ -93,7 +93,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         except ModuleNotFoundError as exc:
             if exc.name and exc.name.split(".")[0] in {"pydantic", "langgraph", "langsmith"}:
                 print(
-                    "review: 请在工具环境安装可选依赖：pip install -e '.[review]'", file=sys.stderr
+                    "review: install optional dependencies in the tool environment: "
+                    "pip install -e '.[review]'",
+                    file=sys.stderr,
                 )
                 return 2
             raise

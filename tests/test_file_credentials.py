@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 from test_backend_controls import config_data
@@ -59,10 +60,11 @@ def test_bad_key_file_never_echoes_values(tmp_path, value):
 
 def test_key_symlink_and_public_permissions_rejected(tmp_path):
     path = private_file(tmp_path / "secrets.local.toml")
-    path.chmod(0o644)
-    with pytest.raises(ConfigError):
-        read_key_file(path)
-    path.chmod(0o600)
+    if os.name == "posix":
+        path.chmod(0o644)
+        with pytest.raises(ConfigError):
+            read_key_file(path)
+        path.chmod(0o600)
     alias = tmp_path / "alias.toml"
     alias.symlink_to(path)
     with pytest.raises(ConfigError):

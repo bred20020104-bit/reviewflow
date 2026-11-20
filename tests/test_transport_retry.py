@@ -284,7 +284,7 @@ def test_actual_cli_and_worker_retry_safe_http_without_hiding_billing(
     assert not result["accounting"]["usage_complete"]
     assert result["accounting"]["records"][0]["error_code"] == "http_status_408"
     assert "PRIVATE_BODY" not in markdown and "synthetic-secret" not in json.dumps(result)
-    assert "重试" in markdown and "未知" in markdown
+    assert "retry" in markdown and "unknown" in markdown
 
 
 @pytest.mark.parametrize("kind,cap", [("evidence_correction", 1), ("dependency_verification", 3),

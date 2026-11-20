@@ -1,3 +1,4 @@
+import os
 import subprocess
 from dataclasses import replace
 
@@ -194,7 +195,10 @@ def test_changed_index_and_git_pointer_cannot_escape_commit(git_repo, tmp_path):
         publisher.commit(
             receipt, "Test", "test@example.invalid", gate, gate.approve(intent, confirmed=True)
         )
-    (ws.path / ".git").write_text(f"gitdir: {git_repo / '.git'}\n")
+    pointer = ws.path / ".git"
+    fd = os.open(pointer, os.O_WRONLY | os.O_TRUNC | getattr(os, "O_BINARY", 0))
+    os.write(fd, f"gitdir: {git_repo / '.git'}\n".encode())
+    os.close(fd)
     with pytest.raises(RepairError, match="metadata"):
         ws.current_digest()
 

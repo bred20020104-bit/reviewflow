@@ -250,7 +250,7 @@ def test_markdown_explains_original_error_and_recovery(git_repo, tmp_path):
     result.update(preview=preview, report_directory="fixture-report")
     text = _markdown(result)
     assert "evidence_hash_mismatch" in text
-    assert "复核纠错：1" in text and "恢复成功：1" in text
+    assert "Verification recovery: 1" in text and "recovered: 1" in text
     result["initial_reviews"][0]["findings"][0]["error"] = "SECRET unknown diagnostic"
     result["verification_recoveries"][0]["diagnostic_code"] = "SECRET unknown diagnostic"
     assert "SECRET" not in _markdown(result)

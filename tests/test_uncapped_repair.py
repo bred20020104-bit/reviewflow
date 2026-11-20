@@ -245,8 +245,8 @@ def test_uncapped_cli_report_preserves_unknown_usage_and_safe_http_status(git_re
         assert main(args + ["--approve", preview["approval_digest"]]) == 1
         document = json.loads(capsys.readouterr().out)
         assert len(calls) == document["accounting"]["requests_attempted"] == 1
-    markdown = (output / "report.md").read_text()
-    assert "不设总模型调用次数上限" in markdown
+    markdown = (output / "report.md").read_text(encoding="utf-8")
+    assert "no total model-call cap" in markdown
     assert "PRIVATE_BODY" not in markdown and "synthetic-secret" not in markdown
     assert document["accounting"]["records"][0]["error_code"] == "http_status_422"
     assert not document["accounting"]["usage_complete"] and document["application"] is None

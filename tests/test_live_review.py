@@ -109,7 +109,7 @@ def test_lower_call_cap_binds_preview_and_stops_network(tmp_path, capsys):
         assert main(args + ["--approve", preview["approval_digest"]]) == 1
         document = json.loads(capsys.readouterr().out)
         assert document["accounting"]["requests_attempted"] == len(calls) == 1
-        assert "请求尝试: 1 / 1" in (tmp_path / "report" / "report.md").read_text()
+        assert "Requests attempted: 1 / 1" in (tmp_path / "report" / "report.md").read_text(encoding="utf-8")
         assert document["report"]["status"] != "complete"
         assert main(["--max-calls", "1"]) == 2
 
@@ -269,12 +269,12 @@ def test_live_renderer_never_claims_simulation_or_zero_network(tmp_path):
     result = run_interactive_review(source, inventory, SessionDemoBackend(), mode="single")
     live = replace(result.report, execution="live_development", semantic_review_performed=True)
     text = render_review(live, "text")
-    assert "模拟" not in text and "网络模型调用 0" not in text
+    assert "Simulated calls" not in text and "network model calls 0" not in text
     parsed = json.loads(render_review(live, "json"))
     assert parsed["execution"] == "live_development"
     assert parsed["semantic_review_performed"] is True
     assert not parsed["target_tests_executed"]
-    assert "模拟" in render_review(result.report)
+    assert "simulated" in render_review(result.report)
 
 
 def fixture_response(body):

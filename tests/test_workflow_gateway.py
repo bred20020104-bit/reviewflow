@@ -100,7 +100,11 @@ def test_gateway_keeps_body_limit_diagnostic_before_approval_or_send(tmp_path):
     gateway, transport, request, seen = gateway_fixture(tmp_path)
     adapter = ResponsesAdapter(model("http://127.0.0.1:1/v1"), lambda: pytest.fail("no key read"))
     gateway.input_upper_bound = adapter.body_size
-    request = replace(request, response_schema={"type": "object", "description": "x" * 65536})
+    from reviewflow.backend.responses_adapter import MAX_BODY_BYTES
+
+    request = replace(
+        request, response_schema={"type": "object", "description": "x" * (MAX_BODY_BYTES + 1)}
+    )
     with pytest.raises(TransportError, match="^responses_request_rejected$"):
         gateway.complete(request)
     assert transport.calls == 0 and seen == []

@@ -13,6 +13,11 @@ import subprocess
 from pathlib import Path
 
 from reviewflow.backend.approval import fingerprint
+from reviewflow.backend.nofollow import (
+    directory_descriptors_available,
+    open_exclusive,
+    replace_regular,
+)
 from reviewflow.backend.repair import (
     CheckedPatch,
     PartialApplicationError,
@@ -75,6 +80,12 @@ def _sha(data):
 
 def _replace(root: Path, path: str, expected: bytes, content: bytes):
     """No-follow traversal and exclusive temporary file; never write through links."""
+    if not directory_descriptors_available():
+        try:
+            replace_regular(root, path, expected, content)
+        except OSError:
+            raise RepairError("Workspace changed or inaccessible") from None
+        return
     fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     temporary = ".reviewflow-" + secrets.token_hex(12)
     try:
@@ -199,7 +210,7 @@ class Workspace:
         ws._committed = None
         ws.baseline_digest = ws.current_digest()
         ws.audit_path = audit_path
-        fd = os.open(audit_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        fd = open_exclusive(audit_path)
         info = os.fstat(fd)
         os.close(fd)
         ws._audit_identity = (info.st_dev, info.st_ino)
@@ -219,7 +230,7 @@ class Workspace:
         import json
 
         try:
-            fd = os.open(self.audit_path, os.O_WRONLY | os.O_APPEND | os.O_NOFOLLOW)
+            fd = open_exclusive(self.audit_path, append=True)
             try:
                 info = os.fstat(fd)
                 if (

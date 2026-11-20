@@ -18,6 +18,7 @@ COMMANDS = {
     "repair-apply",
     "repair-demo",
     "repair-run",
+    "local-fix",
     "evaluate",
     "package",
     "benchmark-demo",
@@ -102,6 +103,42 @@ def main(argv):
                     required=True,
                     help="Exact digest from reviewed repair-preview output",
                 )
+        if name == "local-fix":
+            command.add_argument("-d", "--directory", dest="path", type=Path, required=True)
+            command.add_argument(
+                "--include",
+                action="append",
+                help="Relative .py path to change; repeat for more than one file",
+            )
+            mode = command.add_mutually_exclusive_group()
+            mode.add_argument(
+                "--demo",
+                action="store_true",
+                help="Replace return value - 1 with return value + 1; no model call",
+            )
+            mode.add_argument(
+                "--proposal",
+                type=Path,
+                help="Optional manual overwrite JSON; not used for model repair",
+            )
+            mode.add_argument(
+                "--config",
+                type=Path,
+                help="Model config. Default: config.local.toml in the ReviewFlow directory",
+            )
+            mode.add_argument(
+                "--apply",
+                nargs="?",
+                const="*",
+                metavar="NUMBERS",
+                help="Write chosen preview items, for example 1,3,5 or except 2. "
+                "Omit the value to write every item that does not blank a file.",
+            )
+            mode.add_argument(
+                "--list",
+                action="store_true",
+                help="Show the saved preview without writing or calling the model",
+            )
         if name in {"repair-demo", "package"}:
             command.add_argument("--output", type=Path, required=True, help="New destination only")
         if name == "package":
@@ -135,7 +172,10 @@ def main(argv):
             )
             return 2
         raise
-    except (ValueError, OSError):
+    except (ValueError, OSError) as exc:
+        if getattr(args, "command", None) == "local-fix":
+            print(f"review: {exc}", file=sys.stderr)
+            return 2
         print(
             "review: configuration/input/approval rejected; check explicit paths, schema, "
             "preview digest and existing workspace. No automatic overwrite or retry.",
@@ -148,7 +188,14 @@ def main(argv):
     if isinstance(result, CollectionError):
         print("review: collection failed; snapshot or files changed.", file=sys.stderr)
         return 1
-    print(json.dumps(result, ensure_ascii=True, sort_keys=True, indent=2))
+    if (
+        getattr(args, "command", None) == "local-fix"
+        and isinstance(result, dict)
+        and isinstance(result.get("text"), str)
+    ):
+        print(result["text"])
+    else:
+        print(json.dumps(result, ensure_ascii=True, sort_keys=True, indent=2))
     if args.command in {"session-start", "session-resume"}:
         return 0 if result["report"]["status"] == "complete" else 1
     return 0
@@ -222,6 +269,27 @@ def _execute(args):
             "live_adapter_available": False,
             "notice": "Configuration validity is not source-upload approval.",
         }
+    if args.command == "local-fix":
+        from reviewflow.backend.local_fix import (
+            apply_local,
+            apply_preview,
+            default_config,
+            demo_changes,
+            model_fix,
+            proposal_changes,
+            show_preview,
+        )
+
+        if args.list:
+            return show_preview(args.path)
+        if args.apply is not None:
+            return apply_preview(args.path, args.apply)
+        if args.demo:
+            return apply_local(args.path, demo_changes(args.path, args.include))
+        if args.proposal is not None:
+            return apply_local(args.path, proposal_changes(args.proposal, args.include))
+        config = args.config if args.config is not None else default_config()
+        return model_fix(args.path, config, args.include)
     if args.command == "repair-demo":
         from reviewflow.backend.demo_repair import run_demo
 

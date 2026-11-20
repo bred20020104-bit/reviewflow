@@ -49,8 +49,9 @@ class DependencyAdapter(RepairFixtureAdapter):
 def setup_cross_batch(git_repo, tmp_path, *, cap=48, dependency_source=None):
     # b.py cannot fit with a.py in the existing 32768-byte batch. It is never
     # executed, and its first line is enough for this synthetic verifier.
-    (git_repo / "src/b.py").write_text(dependency_source if dependency_source is not None
-        else "#" + "x" * 16382 + "\n" + "#" + "y" * 16381 + "\n")
+    source = (dependency_source if dependency_source is not None
+              else "#" + "x" * 16382 + "\n" + "#" + "y" * 16381 + "\n")
+    (git_repo / "src/b.py").write_bytes(source.encode())
     git(git_repo, "add", "src/b.py")
     git(git_repo, "commit", "-qm", "Synthetic cross-batch dependency")
     values = setup_budget(git_repo, tmp_path, cap=cap, paths=("a.py", "src/b.py"))
@@ -347,7 +348,7 @@ def test_markdown_reports_dependency_results_without_unknown_diagnostic_text(git
                                 DependencyAdapter(config.model, "unresolved"))
     result.update(preview=preview, report_directory="synthetic")
     text = _markdown(result)
-    assert "跨批依赖复核" in text and "dependency_unresolved" in text
+    assert "Cross-batch dependency checks" in text and "dependency_unresolved" in text
     result["dependency_verifications"][0]["diagnostic_code"] = "SECRET-RAW-ERROR"
     assert "SECRET-RAW-ERROR" not in _markdown(result)
 

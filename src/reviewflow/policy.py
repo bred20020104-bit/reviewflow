@@ -32,6 +32,7 @@ TEXT_SUFFIXES = frozenset(
     {
         ".py",
         ".pyi",
+        ".java",
         ".md",
         ".rst",
         ".txt",
@@ -75,7 +76,7 @@ def path_reason(path: str, entry_type: EntryType) -> str | None:
 
 def classify_kind(path: str) -> FileKind:
     parsed = PurePosixPath(path.lower())
-    if parsed.suffix in {".py", ".pyi"}:
+    if parsed.suffix in {".py", ".pyi", ".java"}:
         if "tests" in parsed.parts[:-1] or parsed.name.startswith("test_"):
             return "test"
         return "source"

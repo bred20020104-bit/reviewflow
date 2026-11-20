@@ -1,5 +1,6 @@
 import os
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -46,7 +47,9 @@ def test_non_directory_rejected(tmp_path, name):
 
 
 def test_spaces_unicode_and_newline_names(tmp_path):
-    names = ["a space.py", "中文.py", "new\nline.py"]
+    names = ["a space.py", "中文.py"]
+    if os.name == "posix":
+        names.append("new\nline.py")
     for name in names:
         (tmp_path / name).write_bytes(b"x")
     source = DirectorySource(tmp_path)
@@ -126,6 +129,7 @@ def test_file_changed_during_read(tmp_path, monkeypatch):
         source.read_bytes(entry, max_bytes=100)
 
 
+@pytest.mark.skipif(os.name != "posix", reason="mkfifo is not available on Windows")
 def test_fifo_is_not_opened(tmp_path):
     os.mkfifo(tmp_path / "pipe.py")
     source = DirectorySource(tmp_path)
@@ -143,3 +147,20 @@ def test_permission_failure_is_not_an_empty_directory(tmp_path, monkeypatch):
     monkeypatch.setattr(os, "scandir", deny)
     with pytest.raises(CollectionError):
         list(source.entries())
+
+
+def test_root_resolve_permission_denied_is_collection_error(tmp_path, monkeypatch):
+    from reviewflow.sources.directory import normalize_root
+
+    target = tmp_path / "locked"
+    target.mkdir()
+    original = Path.resolve
+
+    def deny(self, *args, **kwargs):
+        if os.path.normcase(os.path.abspath(self)) == os.path.normcase(os.path.abspath(target)):
+            raise PermissionError("permission denied")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", deny)
+    with pytest.raises(CollectionError, match="Cannot resolve input directory."):
+        normalize_root(target)

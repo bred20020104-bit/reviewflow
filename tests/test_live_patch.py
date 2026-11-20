@@ -204,8 +204,10 @@ def test_live_patch_crosses_real_gateway_transport_and_loopback_http(tmp_path):
 def test_patch_chunks_all_current_lines_without_oversized_evidence_ranges(tmp_path):
     from reviewflow.agents.profiles import load_profiles
     from reviewflow.backend.live_patch import propose_live_patch
+    from reviewflow.review.context import MAX_EXCERPT_LINES
 
-    text = "value = 1\n" + "# comment\n" * 250
+    extra = 51
+    text = "value = 1\n" + "x\n" * (MAX_EXCERPT_LINES + extra - 1)
     context, task, finding = fixture(tmp_path, text)
     seen = []
 
@@ -215,8 +217,11 @@ def test_patch_chunks_all_current_lines_without_oversized_evidence_ranges(tmp_pa
             return edit_proposal(task, finding).model_dump_json()
 
     propose_live_patch(context, task, finding, Backend(), load_profiles())
-    assert [(p["evidence"]["start_line"], p["evidence"]["end_line"]) for p in seen] == [(1, 200), (201, 251)]
-    assert "".join(p["text"] for p in seen) == text
+    assert [(p["evidence"]["start_line"], p["evidence"]["end_line"]) for p in seen] == [
+        (1, MAX_EXCERPT_LINES),
+        (MAX_EXCERPT_LINES + 1, MAX_EXCERPT_LINES + extra),
+    ]
+    assert "".join(p["text"] for p in seen) == (tmp_path / "app.py").read_bytes().decode("utf-8")
 
 
 def test_stale_source_rejects_patch_request_before_backend_send(tmp_path):

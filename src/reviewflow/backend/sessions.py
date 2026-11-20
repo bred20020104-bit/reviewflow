@@ -165,7 +165,9 @@ def _save(folder, document):
     if len(data) > 2097152:
         raise ValueError("Session report too large")
     path = folder / f"run-{document.revision:04d}.json"
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    from reviewflow.backend.nofollow import open_exclusive
+
+    fd = open_exclusive(path)
     with os.fdopen(fd, "wb") as stream:
         stream.write(data)
         stream.flush()
@@ -244,7 +246,9 @@ def export_finding(folder, source, inventory, finding_id, destination):
     path = _location(destination, source, new=True)
     path.mkdir(mode=0o700)
     for name, value in [("task.json", tasks[0]), ("finding.json", finding)]:
-        fd = os.open(path / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        from reviewflow.backend.nofollow import open_exclusive
+
+        fd = open_exclusive(path / name)
         with os.fdopen(fd, "w") as stream:
             stream.write(value.model_dump_json(indent=2))
     return {

@@ -18,7 +18,7 @@ class DemoBackend:
                         "snapshot_id": data["snapshot_id"],
                         "role": role,
                         "paths": [f["path"] for f in data["files"]],
-                        "objective": "离线模拟任务，不进行真实分析",
+                        "objective": "Offline simulated task; no real analysis",
                     }
                     for role in ("correctness", "security")
                 ]
@@ -40,10 +40,10 @@ class DemoBackend:
                             {
                                 "finding_id": f"{task['task_id']}-demo-{len(findings) + 1}",
                                 "task_id": task["task_id"],
-                                "title": "演示候选（不是模型发现）",
-                                "root_cause": "固定演示标记触发，不代表代码存在缺陷",
-                                "trigger": "文件包含 REVIEWFLOW_DEMO_FINDING 标记",
-                                "impact": "仅展示候选问题与复核流程，无真实风险结论",
+                                "title": "Demonstration candidate (not a model finding)",
+                                "root_cause": "Triggered by a fixed demonstration marker; this does not mean the code is defective",
+                                "trigger": "The file contains the REVIEWFLOW_DEMO_FINDING marker",
+                                "impact": "Shows the candidate and verification flow only; no real risk conclusion",
                                 "severity": "low",
                                 "evidence": [ref],
                             }
@@ -53,7 +53,7 @@ class DemoBackend:
             result = {
                 "finding_id": data["finding"]["finding_id"],
                 "verdict": "accepted",
-                "rationale": "固定模拟判定，仅演示状态流；不是独立语义验证",
+                "rationale": "Fixed simulated verdict for the status flow only; not an independent semantic check",
                 "evidence": data["finding"]["evidence"],
             }
         return json.dumps(result, ensure_ascii=True)

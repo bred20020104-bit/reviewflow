@@ -4,6 +4,7 @@ import socket
 import pytest
 
 from reviewflow.models import ScanPolicy
+from reviewflow.review.context import MAX_EXCERPT_LINES
 from reviewflow.review.workflow import run_review
 from reviewflow.review.workflow_models import RunLimits
 from reviewflow.snapshot import build_inventory
@@ -192,7 +193,7 @@ def test_invalid_candidate_batch_rejected(tmp_path, corruption):
 
 
 def test_context_omissions_and_reported_coverage(tmp_path):
-    (tmp_path / "long.py").write_text("x\n" * 201)
+    (tmp_path / "long.py").write_text("x\n" * (MAX_EXCERPT_LINES + 1))
     (tmp_path / "empty.py").write_text("")
     (tmp_path / ".env").write_text("secret")
     report, _ = fixture_run(tmp_path)

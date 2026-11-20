@@ -11,7 +11,12 @@ import pytest
 from pydantic import SecretStr
 
 from reviewflow.backend.development import DevelopmentModel
-from reviewflow.backend.responses_adapter import ResponsesAdapter, build_body
+from reviewflow.backend.responses_adapter import (
+    MAX_BODY_BYTES,
+    MAX_RESPONSE_BYTES,
+    ResponsesAdapter,
+    build_body,
+)
 from reviewflow.backend.transport import TransportError
 
 WIRE = json.dumps(
@@ -224,7 +229,7 @@ def test_parent_deadline_terminates_worker_without_background_request_loop():
         (503, b"synthetic-private-key", "http_server_error"),
         (201, b"synthetic-private-key", "http_error"),
         (200, b"not-json synthetic-private-key", "response_json_invalid"),
-        (200, b"x" * 262145, "response_too_large"),
+        (200, b"x" * (MAX_RESPONSE_BYTES + 1), "response_too_large"),
     ],
 )
 def test_real_worker_preserves_safe_http_and_body_diagnostics(status, raw, code):
@@ -408,7 +413,7 @@ def test_real_worker_tls_failure_has_safe_code():
 
 def test_oversized_request_rejected_before_key_read_or_network():
     wire = json.loads(WIRE)
-    wire["payload"]["text"] = "x" * 65536
+    wire["payload"]["text"] = "x" * (MAX_BODY_BYTES + 1)
 
     def forbidden():
         pytest.fail("must not read Key for oversized request")

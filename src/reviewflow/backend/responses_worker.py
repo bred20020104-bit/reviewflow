@@ -18,6 +18,13 @@ from reviewflow.backend.diagnostics import (
     safe_error_code,
 )
 from reviewflow.backend.response_safety import validate_response_text
+from reviewflow.backend.responses_adapter import (
+    MAX_BODY_BYTES,
+    MAX_ENVELOPE_BYTES,
+    MAX_RESPONSE_BYTES,
+    MAX_TIMEOUT_SECONDS,
+    MODEL_MAX_OUTPUT_TOKENS,
+)
 from reviewflow.backend.worker_progress import ProgressWriter
 
 
@@ -117,8 +124,8 @@ def main(progress_fd=None):
     connection = None
     failure = "worker_protocol_error"
     try:
-        raw = sys.stdin.buffer.read(524289)
-        if len(raw) > 524288:
+        raw = sys.stdin.buffer.read(MAX_ENVELOPE_BYTES + 1)
+        if len(raw) > MAX_ENVELOPE_BYTES:
             raise ValueError()
         request = json.loads(raw)
         parsed = urlsplit(development_endpoint(request["base_url"]))
@@ -134,11 +141,11 @@ def main(progress_fd=None):
         body = request["body"].encode("utf-8")
         cap, timeout = request["max_output_tokens"], request["timeout"]
         if (
-            len(body) > 65536
+            len(body) > MAX_BODY_BYTES
             or type(cap) is not int
-            or not 1 <= cap <= 2048
+            or not 1 <= cap <= MODEL_MAX_OUTPUT_TOKENS
             or type(timeout) not in (int, float)
-            or not 0 < timeout <= 60
+            or not 0 < timeout <= MAX_TIMEOUT_SECONDS
         ):
             raise ValueError()
         path = parsed.path.rstrip("/")
@@ -172,8 +179,8 @@ def main(progress_fd=None):
         if response.status != 200:
             # No redirects, retries, or reads of provider error bodies/headers.
             raise SafeTransportError(_http_error(response.status))
-        raw_response = response.read(262145)
-        if len(raw_response) > 262144:
+        raw_response = response.read(MAX_RESPONSE_BYTES + 1)
+        if len(raw_response) > MAX_RESPONSE_BYTES:
             raise SafeTransportError("response_too_large")
         progress.mark()
         result = _response_result(raw_response, cap, key)

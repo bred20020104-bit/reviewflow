@@ -27,7 +27,7 @@ def test_projects(files):
 _PYTEST_SCRIPT = '''import json, os, sys, pytest
 config = json.load(sys.stdin)
 root = config['root']
-arguments = ['-q', '-p', 'no:cacheprovider', '-c', '/dev/null',
+arguments = ['-q', '-p', 'no:cacheprovider', '-c', os.devnull,
              '--rootdir=' + root, '--confcutdir=' + root, '-o', 'addopts=']
 arguments += [os.path.join(root, path) for path in config['files']]
 sys.path.insert(0, root)
@@ -74,11 +74,22 @@ class Outcomes:
         # Pytest locations describe the definition, which can be imported/inherited
         # from a different file than item.path (the collection file).
         definition_path, definition_line, _ = item.location
-        path = os.path.relpath(definition_path, root) if os.path.isabs(definition_path) else definition_path
+
+        def relative(value):
+            try:
+                text = os.path.relpath(value, root) if os.path.isabs(value) else value
+            except ValueError:
+                return None
+            return text.replace(chr(92), '/')
+
+        path = relative(definition_path)
+        if path is None:
+            self.incomplete = True
+            return
         test_line = definition_line + 1
         line = test_line
         for frame in call.excinfo.traceback:
-            if os.path.relpath(str(frame.path), root) == path:
+            if relative(str(frame.path)) == path:
                 line = frame.lineno + 1
         self.detail = (path, line, test_line, call.when, category)
     def pytest_runtest_logreport(self, report):
@@ -110,8 +121,13 @@ elif not outcomes.executed:
     code = 5
 packet = dict(failures=outcomes.failures, truncated=outcomes.truncated,
               incomplete=outcomes.incomplete)
-with os.fdopen(config['diagnostic_fd'], 'wb') as output:
-    output.write(json.dumps(packet, separators=(',', ':')).encode())
+encoded = json.dumps(packet, separators=(',', ':')).encode()
+if config.get('diagnostic_path'):
+    with open(config['diagnostic_path'], 'wb') as output:
+        output.write(encoded)
+else:
+    with os.fdopen(config['diagnostic_fd'], 'wb') as output:
+        output.write(encoded)
 raise SystemExit(code)
 '''
 
@@ -126,16 +142,37 @@ root = {root!r}
 script = {_PYTEST_SCRIPT!r}
 for index, project in enumerate({projects!r}):
     directory = os.path.join(root, project['root'])
-    with BoundedOutput() as capture:
-        fd = capture.writer.fileno()
-        config = {{'root': root, 'project': directory, 'files': project['files'], 'diagnostic_fd': fd}}
+    diagnostic_path = None
+    if os.name == 'posix':
+        with BoundedOutput() as capture:
+            fd = capture.writer.fileno()
+            config = {{'root': root, 'project': directory, 'files': project['files'], 'diagnostic_fd': fd}}
+            result = subprocess.run([sys.executable, '-I', '-B', '-c', script], cwd=directory,
+                                    input=json.dumps(config).encode(), pass_fds=(fd,),
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        raw, overflow = bytes(capture.data), capture.overflow or capture.incomplete
+    else:
+        diagnostic_path = os.path.join(directory, '.reviewflow-diagnostic')
+        config = {{'root': root, 'project': directory, 'files': project['files'],
+                   'diagnostic_path': diagnostic_path}}
         result = subprocess.run([sys.executable, '-I', '-B', '-c', script], cwd=directory,
-                                input=json.dumps(config).encode(), pass_fds=(fd,),
+                                input=json.dumps(config).encode(),
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            with open(diagnostic_path, 'rb') as diagnostic:
+                raw = diagnostic.read(65537)
+            overflow = len(raw) > 65536
+        except OSError:
+            raw, overflow = b'', True
+        finally:
+            try:
+                os.remove(diagnostic_path)
+            except OSError:
+                pass
     try:
-        if capture.overflow or capture.incomplete:
+        if overflow:
             raise ValueError()
-        packet = json.loads(capture.data)
+        packet = json.loads(raw)
         if (type(packet) is not dict or set(packet) != {{'failures', 'truncated', 'incomplete'}}
                 or type(packet['failures']) is not list or len(packet['failures']) > 50
                 or type(packet['truncated']) is not bool or type(packet['incomplete']) is not bool):

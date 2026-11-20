@@ -242,7 +242,7 @@ def test_reviewer_diagnostics_include_task_errors_without_arbitrary_text():
         "reviewer_recoveries": [{"status": "recovered", "diagnostic_code": None}]}
     text = _markdown(document)
     assert "evidence_hash_mismatch" in text
-    assert "审查纠错：1 条记录；恢复成功：1" in text
+    assert "Reviewer recovery: 1 records; recovered: 1" in text
     assert "PRIVATE" not in text
 
 

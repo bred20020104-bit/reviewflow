@@ -127,8 +127,9 @@ def test_context_budget_keeps_file_prefixes_instead_of_tail_only_or_starved_path
 
 @pytest.mark.parametrize("start_line", [1, 100])
 def test_retrieving_overlapping_ranges_does_not_charge_lines_twice(tmp_path, start_line):
-    (tmp_path / "a.py").write_text("x=1\n" * 200)
-    (tmp_path / "b.py").write_text("x=1\n" * 100)
+    # Byte budget is exact; write_bytes keeps LF so Windows does not expand CRLF.
+    (tmp_path / "a.py").write_bytes(b"x=1\n" * 200)
+    (tmp_path / "b.py").write_bytes(b"x=1\n" * 100)
     source = DirectorySource(tmp_path)
     inventory = build_inventory(source, ScanPolicy())
 

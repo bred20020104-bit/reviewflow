@@ -229,7 +229,7 @@ def test_multifile_writeback_and_owned_rollback(git_repo, tmp_path, monkeypatch,
         calls += 1
         if calls == 2 and failure in {"second_write", "user_race"}:
             if failure == "user_race":
-                (git_repo / "a.py").write_text("concurrent user change\n")
+                (git_repo / "a.py").write_bytes(b"concurrent user change\n")
             raise RepairError("Injected second write failure")
         original_replace(root, path, before, after)
         if calls == 1 and failure == "index_change":

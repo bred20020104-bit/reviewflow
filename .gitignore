@@ -29,6 +29,7 @@ coverage.xml
 /secrets/
 /config.local.*
 /secrets.local.toml
+/local-fix.preview.json
 
 # Local agent/tool settings, editors and OS
 /.claude/

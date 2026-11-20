@@ -23,7 +23,7 @@ def safe_text(value: object) -> str:
 
 def _markdown(value: object) -> str:
     text = "".join(
-        f"&#{ord(char)};" if char in "\\`|*[]{}()!#~" else html.escape(char, quote=True)
+        f"&#{ord(char)};" if char in "\\`|*[]{}()!#~_" else html.escape(char, quote=True)
         for char in safe_text(value)
     )
     # Visible newline escapes are ordinary text, never actual table row breaks.
@@ -47,44 +47,51 @@ def _size(count: int) -> str:
     return f"{count / (1024 * 1024):.1f} MiB"
 
 
+def _noun(count: int, singular: str, plural: str) -> str:
+    return f"{count} {singular if count == 1 else plural}"
+
+
 def render_text(inventory: Inventory, *, verbose: bool = False) -> str:
     snapshot, coverage = inventory.snapshot, inventory.coverage
     source = snapshot.source
     origin = (
-        f"已提交 HEAD ({source.commit})；未提交修改不纳入"
+        f"committed HEAD ({source.commit}); uncommitted changes are excluded"
         if source.mode == "head"
-        else "当前文件（包括未提交修改；无 Git 修复资格）"
+        else "current files (includes uncommitted changes; not eligible for Git repair)"
     )
     lines = [
-        "ReviewFlow · 项目文件盘点",
+        "ReviewFlow · repository inventory",
         "",
-        f"项目      {safe_text(source.root)}",
-        f"来源      {origin}",
-        "结果      盘点完成，不代表代码审查通过",
+        f"Project   {safe_text(source.root)}",
+        f"Source    {origin}",
+        "Result    inventory complete; this is not a passed code review",
         "",
-        f"纳入      {coverage.included_files} 个文件 · {_size(coverage.included_bytes)}",
-        f"跳过      {coverage.skipped_files} 个文件/条目 · {coverage.excluded_directories} 个目录（内部文件数未知）",
-        f"预算      {'已达到限制，覆盖不完整' if coverage.budget_limited else '未达到限制'}",
-        f"上限      {snapshot.policy.max_files} 个文件 · 单文件 {_size(snapshot.policy.max_file_bytes)} · 总计 {_size(snapshot.policy.max_total_bytes)}",
-        f"快照      {snapshot.snapshot_id}",
+        f"Included  {_noun(coverage.included_files, 'file', 'files')} · {_size(coverage.included_bytes)}",
+        f"Skipped   {_noun(coverage.skipped_files, 'file/entry', 'files/entries')} · "
+        f"{coverage.excluded_directories} directories (nested file count unknown)",
+        f"Budget    {'limit reached; coverage is incomplete' if coverage.budget_limited else 'within the limit'}",
+        f"Limits    {snapshot.policy.max_files} files · "
+        f"{_size(snapshot.policy.max_file_bytes)} per file · "
+        f"{_size(snapshot.policy.max_total_bytes)} total",
+        f"Snapshot  {snapshot.snapshot_id}",
         "",
-        "注意",
-        "  · 尚未进行代码逻辑审查或执行目标测试",
+        "Notes",
+        "  · No semantic review or target tests have been run",
     ]
     lines.extend(f"  · {safe_text(warning)}" for warning in snapshot.warnings)
     if verbose:
-        for title, status in (("纳入文件", "included"), ("跳过条目", "skipped")):
+        for title, status in (("Included files", "included"), ("Skipped entries", "skipped")):
             lines += ["", title]
             for record in snapshot.records:
                 if record.status == status:
                     lines.append(f"  {safe_text(record.path)}")
                     lines.append(
-                        f"    类型={record.kind} 字节={record.size_bytes} 原因={record.reason or '—'}"
+                        f"    kind={record.kind} bytes={record.size_bytes} reason={record.reason or '—'}"
                     )
                     if record.sha256:
                         lines.append(f"    SHA-256={record.sha256}")
     else:
-        lines += ["", "使用 --verbose 查看完整文件清单。"]
+        lines += ["", "Use --verbose for the full file list."]
     lines += ["", NOTICE]
     return "\n".join(lines)
 
@@ -99,7 +106,10 @@ def render_markdown(inventory: Inventory) -> str:
         ("Commit", source.commit),
         ("Branch", source.branch),
         ("Dirty", source.dirty),
-        ("Git repair eligible (source only; repair not implemented)", source.git_repair_eligible),
+        (
+            "Git repair eligible (source metadata only; inventory does not authorize repair)",
+            source.git_repair_eligible,
+        ),
         ("Snapshot ID", snapshot.snapshot_id),
         ("Schema version", snapshot.schema_version),
     ):

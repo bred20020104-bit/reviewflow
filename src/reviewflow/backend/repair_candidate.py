@@ -14,6 +14,11 @@ from pathlib import Path
 from reviewflow.backend.approval import fingerprint
 from reviewflow.backend.live_patch import live_editable
 from reviewflow.backend.live_review import selected_inventory
+from reviewflow.backend.nofollow import (
+    directory_descriptors_available,
+    mode_matches,
+    read_regular,
+)
 from reviewflow.backend.repair import (
     CheckedPatch,
     PartialApplicationError,
@@ -44,6 +49,11 @@ def _identity(path):
 
 def _read(root, path):
     """Read a bounded ordinary file without following any component symlink."""
+    if not directory_descriptors_available():
+        try:
+            return read_regular(Path(root), path, 262144)
+        except OSError:
+            raise RepairError("File changed or inaccessible") from None
     fds, parents = [], []
     try:
         fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -242,7 +252,7 @@ class RepairCandidate:
             result = {}
             for path, expected in self._expected.items():
                 data, _, signature = _read(self.path, path)
-                if data != expected or stat.S_IMODE(signature[2]) != modes[path]:
+                if data != expected or not mode_matches(signature[2], modes[path]):
                     raise RepairError("Candidate files changed")
                 result[path] = data
             return result

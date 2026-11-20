@@ -54,10 +54,10 @@ def run_demo(destination: Path):
     finding = Finding(
         finding_id="demo-finding",
         task_id=task.task_id,
-        title="预设演示：increment 返回减一",
-        root_cause="固定样例，不是模型发现",
-        trigger="演示需求为返回加一",
-        impact="仅演示补丁流",
+        title="Preset demonstration: increment returns minus one",
+        root_cause="Fixed sample, not a model finding",
+        trigger="The demonstration requires returning plus one",
+        impact="Demonstrates the patch flow only",
         severity="low",
         evidence=(ref,),
     )
@@ -68,7 +68,7 @@ def run_demo(destination: Path):
                 {
                     "snapshot_id": ref.snapshot_id,
                     "finding_id": finding.finding_id,
-                    "explanation": "固定模拟补丁；未执行测试",
+                    "explanation": "Fixed simulated patch; tests were not run",
                     "replacements": [
                         {
                             "path": "app.py",
@@ -103,5 +103,5 @@ def run_demo(destination: Path):
         "commit_ready": False,
         "target_tests_executed": False,
         "semantic_review_performed": False,
-        "notice": "仅自有样例的离线补丁演示；原文件不变；未进行真实审查、测试或推送。",
+        "notice": "Offline patch demonstration for the owned sample only. The original file is unchanged. No live review, tests, or push.",
     }

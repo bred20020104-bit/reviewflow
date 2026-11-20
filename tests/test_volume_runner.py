@@ -55,11 +55,12 @@ def approved_run(runner, files=None):
 
 
 def test_volume_copy_preserves_explicit_committed_executable_modes():
+    import os
     import stat
     from pathlib import Path
 
     def execute(command, **kwargs):
-        if command[1] == "cp":
+        if command[1] == "cp" and os.name == "posix":
             root = Path(command[2])
             assert stat.S_IMODE((root / "run.sh").stat().st_mode) == 0o755
             assert stat.S_IMODE((root / "a.py").stat().st_mode) == 0o644
@@ -186,7 +187,7 @@ def test_volume_export_remains_readable_to_container_under_private_host_umask():
     from pathlib import Path
 
     def execute(command, **kwargs):
-        if command[1] == "cp":
+        if command[1] == "cp" and os.name == "posix":
             root = Path(command[2])
             assert stat.S_IMODE(root.stat().st_mode) == 0o755
             assert stat.S_IMODE((root / "pkg/tests").stat().st_mode) == 0o755

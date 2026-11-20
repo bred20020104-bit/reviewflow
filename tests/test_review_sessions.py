@@ -31,7 +31,7 @@ def test_session_is_report_first_and_reopens_without_authority(tmp_path):
     assert resumed.revision == 2
     assert not resumed.commit_ready
     assert len(list(folder.glob("run-*.json"))) == 2
-    text = (folder / "run-0001.json").read_text()
+    text = (folder / "run-0001.json").read_text(encoding="utf-8")
     assert "grant" not in text and "api_key" not in text
     assert (root / "a.py").read_text() == "# REVIEWFLOW_DEMO_FINDING\nx=1\n"
 
@@ -56,7 +56,7 @@ def test_disk_session_cannot_restore_permissions_or_real_results(tmp_path, tampe
     root, source, inventory, folder = fixture(tmp_path)
     start_session(folder, source, inventory)
     path = folder / "run-0001.json"
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     if tamper == "approval":
         data["approval"] = True
     elif tamper == "execution":

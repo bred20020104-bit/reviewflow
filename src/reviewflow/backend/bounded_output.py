@@ -27,6 +27,10 @@ class BoundedOutput:
 
     def _drain(self):
         import os
+
+        if os.name != "posix":
+            self._drain_until_close()
+            return
         import select
 
         after_stop = 0
@@ -48,6 +52,22 @@ class BoundedOutput:
                     if after_stop > self.limit // 8192 + 1:
                         self.incomplete = True
                         break
+        except OSError:
+            self.incomplete = True
+        finally:
+            os.close(self._read)
+
+    def _drain_until_close(self):
+        import os
+
+        try:
+            while True:
+                block = os.read(self._read, 8192)
+                if not block:
+                    break
+                space = self.limit - len(self.data)
+                self.data.extend(block[:space])
+                self.overflow |= len(block) > space
         except OSError:
             self.incomplete = True
         finally:

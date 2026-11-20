@@ -204,7 +204,7 @@ def test_http_status_reaches_cli_reports_without_body_retry_or_writeback(
         assert document["accounting"]["records"][0]["error_code"] == f"http_status_{status}"
         assert not document["patch_attempts"] and not document["final_reviews"]
         for name in ("report.json", "report.md"):
-            text = (output / name).read_text()
+            text = (output / name).read_text(encoding="utf-8")
             assert f"http_status_{status}" in text
             assert "PRIVATE_PROVIDER_BODY" not in text and "synthetic-secret" not in text
         assert (git_repo / "a.py").read_bytes() == b"old\n"

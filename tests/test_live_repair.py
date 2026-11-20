@@ -137,7 +137,7 @@ def test_later_unchanged_evidence_is_independently_reverified(git_repo, tmp_path
 
     from reviewflow.backend.live_repair import run_repair_session
 
-    (git_repo / "src/b.py").write_text("old\n")
+    (git_repo / "src/b.py").write_bytes(b"old\n")
     git(git_repo, "add", "src/b.py")
     git(git_repo, "commit", "-qm", "Synthetic second defect")
     plan, config, profiles, runner, _, authority = setup_budget(

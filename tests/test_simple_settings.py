@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 
@@ -118,6 +119,8 @@ def test_config_check_reads_private_file_but_never_prints_key(tmp_path, capsys):
     "change", ["permissions", "symlink", "unknown", "bad_endpoint", "missing_model"]
 )
 def test_private_model_settings_fail_closed_without_disclosing_key(tmp_path, change):
+    if change == "permissions" and os.name != "posix":
+        pytest.skip("Windows file modes cannot represent owner-only permissions")
     config, secret = configured(tmp_path)
     if change == "permissions":
         secret.chmod(0o644)

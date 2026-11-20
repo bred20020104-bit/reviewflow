@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from reviewflow.quick import main
+from reviewflow.review.context import MAX_EXCERPT_LINES
 
 
 @pytest.mark.parametrize("mode,calls", [("single", 1), ("multi", 4)])
@@ -24,15 +25,16 @@ def test_demo_report_modes(tmp_path, capsys, mode, calls):
     assert "answer = 42" not in json.dumps(report)
     decision = report["findings"][0]["verification"]
     assert (decision is None) == (mode == "single")
-    assert "模拟" in report["notice"]
+    assert "simulated" in report["notice"]
 
 
 @pytest.mark.parametrize("fmt", ["text", "markdown"])
+@pytest.mark.skipif(os.name != "posix", reason="Windows rejects ESC characters in file names")
 def test_safe_demo_rendering(tmp_path, capsys, fmt):
     (tmp_path / "bad\x1b[31m.py").write_text("# REVIEWFLOW_DEMO_FINDING\n")
     assert main(["-d", str(tmp_path), "--demo", "--format", fmt]) == 0
     out = capsys.readouterr().out
-    assert "模拟" in out and "演示候选" in out
+    assert "simulated" in out and "Demonstration candidate" in out
     assert "\x1b" not in out
     assert "bad\\x1b[31m.py" in out
 
@@ -65,13 +67,14 @@ def test_failed_demo_not_success(tmp_path, capsys):
 
 def test_partial_demo_preserves_omissions(tmp_path, capsys):
     (tmp_path / "ok.py").write_text("answer=42\n")
-    (tmp_path / "long.py").write_text("a\n" * 201)
+    (tmp_path / "long.py").write_text("a\n" * (MAX_EXCERPT_LINES + 1))
     assert main(["--demo", "-d", str(tmp_path), "--format", "json"]) == 1
     report = json.loads(capsys.readouterr().out)
     assert report["status"] == "partial"
     assert report["unreviewed_paths"] == ["long.py"]
 
 
+@pytest.mark.skipif(os.name != "posix", reason="The isolated review launcher requires POSIX")
 def test_actual_isolated_launcher_demo_no_target_execution(tmp_path):
     from reviewflow.install import install_launcher
 

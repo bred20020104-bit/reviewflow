@@ -1,6 +1,7 @@
 """Narrow Responses HTTP protocol adapter, not an SDK or priced token counter."""
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -13,7 +14,15 @@ from reviewflow.backend.transport import Reply, Usage
 from reviewflow.backend.worker_progress import MAX_PROGRESS_BYTES, decode_progress
 
 ADAPTER_VERSION = "responses-development-v10"
-MAX_BODY_BYTES = 65536
+# gpt-5.6-sol: 1,050,000 context tokens, 922,000 max input, 128,000 max output.
+MODEL_CONTEXT_TOKENS = 1_050_000
+MODEL_MAX_INPUT_TOKENS = 922_000
+MODEL_MAX_OUTPUT_TOKENS = 128_000
+MAX_BODY_BYTES = MODEL_MAX_INPUT_TOKENS * 4
+MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+MAX_ENVELOPE_BYTES = MAX_BODY_BYTES * 2 + 1024 * 1024
+MAX_TIMEOUT_SECONDS = 300
+MAX_FILE_BYTES = MODEL_CONTEXT_TOKENS * 4
 
 
 def strict_schema(value):
@@ -30,7 +39,7 @@ def strict_schema(value):
 
 def build_body(model, wire, max_output_tokens):
     try:
-        if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 2048:
+        if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= MODEL_MAX_OUTPUT_TOKENS:
             raise ValueError()
         data = json.loads(wire)
         if (
@@ -114,7 +123,7 @@ class ResponsesAdapter:
                 },
                 ensure_ascii=True,
             ).encode()
-            if len(request) > 524288:
+            if len(request) > MAX_ENVELOPE_BYTES:
                 raise ValueError()
         except Exception:
             raise SafeTransportError("responses_request_rejected") from None
@@ -123,13 +132,18 @@ class ResponsesAdapter:
             # Private, unnamed file contains only six fixed binary milestones. The
             # POSIX worker inherits just this descriptor; secrets remain on stdin.
             with tempfile.TemporaryFile() as trace:
+                command = [sys.executable, "-I", "-m", "reviewflow.backend.responses_worker"]
+                run_kwargs = {
+                    "input": request,
+                    "capture_output": True,
+                    "timeout": timeout_seconds,
+                    "check": False,
+                }
+                if os.name == "posix":
+                    command.extend(["--progress-fd", str(trace.fileno())])
+                    run_kwargs["pass_fds"] = (trace.fileno(),)
                 try:
-                    completed = subprocess.run(
-                        [sys.executable, "-I", "-m", "reviewflow.backend.responses_worker",
-                         "--progress-fd", str(trace.fileno())],
-                        input=request, capture_output=True, timeout=timeout_seconds,
-                        check=False, pass_fds=(trace.fileno(),),
-                    )
+                    completed = subprocess.run(command, **run_kwargs)
                 except subprocess.TimeoutExpired:
                     # subprocess.run has killed and waited for the worker here.
                     trace.seek(0)
@@ -143,7 +157,7 @@ class ResponsesAdapter:
         if completed.returncode not in (0, 1) or (completed.returncode and not completed.stdout):
             raise SafeTransportError("worker_failed", progress=progress)
         try:
-            if len(completed.stdout) > 524288:
+            if len(completed.stdout) > MAX_RESPONSE_BYTES:
                 raise ValueError()
             result = json.loads(completed.stdout, object_pairs_hook=_unique_object)
             if not isinstance(result, dict):

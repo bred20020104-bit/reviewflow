@@ -1,5 +1,7 @@
 """Owned candidate tests use temporary synthetic Git repositories only."""
 
+import os
+
 import pytest
 from conftest import git
 from test_repair_workspace import proposal_for
@@ -59,7 +61,7 @@ def test_detached_candidate_contains_head_not_dirty_work_and_preserves_original(
 def test_script_and_example_export_do_not_relax_model_inventory(git_repo, tmp_path):
     (git_repo / "run.sh").write_text("#!/bin/sh\nprintf 'not executed'\n")
     (git_repo / "run.sh").chmod(0o755)
-    (git_repo / ".env.example").write_text("VALUE=placeholder\n")
+    (git_repo / ".env.example").write_bytes(b"VALUE=placeholder\n")
     git(git_repo, "add", "run.sh", ".env.example")
     git(git_repo, "commit", "-m", "synthetic local test inputs")
     candidate = create(plan_for(git_repo, tmp_path / "storage"))
@@ -147,7 +149,10 @@ def test_unknown_candidate_changes_block_reads_and_rollback(git_repo, tmp_path, 
     elif change == "candidate-branch":
         git(candidate.path, "switch", "-c", "unexpected-candidate-branch")
     else:
-        (candidate.path / ".git").write_text(f"gitdir: {git_repo / '.git'}\n")
+        pointer = candidate.path / ".git"
+        fd = os.open(pointer, os.O_WRONLY | os.O_TRUNC | getattr(os, "O_BINARY", 0))
+        os.write(fd, f"gitdir: {git_repo / '.git'}\n".encode())
+        os.close(fd)
     with pytest.raises(RepairError):
         candidate.files()
     with pytest.raises(RepairError):
@@ -156,7 +161,7 @@ def test_unknown_candidate_changes_block_reads_and_rollback(git_repo, tmp_path, 
 
 
 def test_candidate_application_rechecks_live_protected_path_rules(git_repo, tmp_path):
-    (git_repo / "config.py").write_text("value = 1\n")
+    (git_repo / "config.py").write_bytes(b"value = 1\n")
     git(git_repo, "add", "config.py")
     git(git_repo, "commit", "-m", "synthetic configuration")
     candidate = create(plan_for(git_repo, tmp_path / "storage", ("config.py",)))
@@ -182,7 +187,8 @@ def test_candidate_replacement_preserves_modes_under_private_umask(git_repo, tmp
     try:
         candidate.apply(patch, context, task, finding)
         assert candidate.files()["a.py"] == b"fixed\n"
-        assert stat.S_IMODE((candidate.path / "a.py").stat().st_mode) == 0o644
+        if os.name == "posix":
+            assert stat.S_IMODE((candidate.path / "a.py").stat().st_mode) == 0o644
     finally:
         os.umask(previous)
 
@@ -209,7 +215,7 @@ def test_failed_multifile_candidate_change_rolls_back_only_owned_bytes(git_repo,
         calls += 1
         if calls == 2:
             if user_race:
-                (candidate.path / "a.py").write_text("user edit during rollback\n")
+                (candidate.path / "a.py").write_bytes(b"user edit during rollback\n")
             raise RepairError("Injected filesystem failure")
         return original_replace(root, path, before, after)
 

@@ -26,13 +26,13 @@ from reviewflow.review.contracts import RelativePath
 
 def repository_script(root="/workspace"):
     """Fixed pytest policy; root is a trusted controller path, never model code."""
-    arguments = [
-        "-q", "-p", "no:cacheprovider", "-c", "/dev/null",
-        f"--rootdir={root}", f"--confcutdir={root}",
-        "-o", "addopts=", "-o", "python_files=test_*.py *_test.py", root,
-    ]
-    return f"""import sys, pytest
+    return f"""import os, sys, pytest
 sys.path.insert(0, {root!r})
+arguments = [
+    "-q", "-p", "no:cacheprovider", "-c", os.devnull,
+    "--rootdir=" + {root!r}, "--confcutdir=" + {root!r},
+    "-o", "addopts=", "-o", "python_files=test_*.py *_test.py", {root!r},
+]
 class Outcomes:
     def __init__(self):
         self.collected = 0
@@ -49,7 +49,7 @@ class Outcomes:
         elif report.when != 'call' and report.failed:
             self.phase_errors += 1
 outcomes = Outcomes()
-code = int(pytest.main({arguments!r}, plugins=[outcomes]))
+code = int(pytest.main(arguments, plugins=[outcomes]))
 if code in (2, 3, 4) or outcomes.phase_errors:
     code = 3
 elif not outcomes.collected or not outcomes.executed:

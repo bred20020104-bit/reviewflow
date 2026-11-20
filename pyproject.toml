@@ -5,13 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "reviewflow"
 version = "0.1.0"
-description = "Read-only repository inventory foundation for a multi-agent review assistant"
+description = "Multi-agent pre-release review with confirmed local edits and Git worktree repair"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
 reviewflow = "reviewflow.cli:main"
+review = "reviewflow.quick:main"
 
 [project.optional-dependencies]
 review = ["pydantic>=2,<3", "langgraph>=1,<2"]

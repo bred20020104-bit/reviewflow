@@ -1,4 +1,5 @@
 import json
+import os
 from hashlib import sha256
 
 import pytest
@@ -13,9 +14,9 @@ def test_no_arguments_inventory_current_directory(tmp_path, monkeypatch, capsys)
     assert main([]) == 0
     output = capsys.readouterr()
     assert output.err == ""
-    assert "项目文件盘点" in output.out
+    assert "repository inventory" in output.out
     assert str(tmp_path.resolve()) in output.out
-    assert "1 个文件" in output.out
+    assert "1 file" in output.out
     assert "test_file.py" not in output.out
     assert sha256(b"value = 1\n").hexdigest() not in output.out
     assert NOTICE in output.out
@@ -34,6 +35,7 @@ def test_target_path_and_json(tmp_path, monkeypatch, capsys, flag):
     assert set(data) == {"snapshot", "coverage", "notice"}
 
 
+@pytest.mark.skipif(os.name != "posix", reason="Windows rejects newline characters in file names")
 def test_verbose_safe_names_and_skip_details(tmp_path, capsys):
     name = "test_\x1b[31m\nfile.py"
     (tmp_path / name).write_bytes(b"x")
@@ -75,9 +77,16 @@ def test_help_version_without_scanning(option, capsys, monkeypatch):
 
 
 def test_markdown_readable_underscores(tmp_path, capsys):
-    (tmp_path / "test_file.py").write_bytes(b"x")
+    for name in ("test_file.py", "__init__.py", "_private_.py"):
+        (tmp_path / name).write_bytes(b"x")
     assert main(["-d", str(tmp_path), "--format", "markdown"]) == 0
-    assert "test_file.py" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    # Underscores are emphasis delimiters; numeric entities keep the filename intact.
+    assert "test&#95;file.py" in out
+    assert "&#95;&#95;init&#95;&#95;.py" in out
+    assert "&#95;private&#95;.py" in out
+    assert "__init__.py" not in out
+    assert "_private_.py" not in out
 
 
 def test_head_warning_in_short_summary(dirty_repo, capsys):

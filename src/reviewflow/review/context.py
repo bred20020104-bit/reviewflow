@@ -17,8 +17,8 @@ from reviewflow.review.contracts import (
 from reviewflow.review.evidence_errors import EvidenceValidationError
 from reviewflow.snapshot import compute_snapshot_id
 
-MAX_EXCERPT_LINES = 200
-MAX_EXCERPT_BYTES = 32768
+MAX_EXCERPT_LINES = 8000
+MAX_EXCERPT_BYTES = 262144
 Message = TypeVar("Message", bound=ReviewMessage)
 
 

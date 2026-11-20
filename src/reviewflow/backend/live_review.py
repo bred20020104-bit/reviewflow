@@ -28,8 +28,10 @@ from reviewflow.snapshot import build_inventory, compute_snapshot_id
 from reviewflow.sources.git import open_source
 
 NOTICE = (
-    "真实开发审查：第三方金额未知；HTTP 会明文传输凭据和源码。"
-    "不执行目标代码/测试，不修改文件。模型结论仍需核验，不是上线安全保证。"
+    "Live development review: third-party cost is unknown. "
+    "HTTP sends credentials and source in clear text. "
+    "Target code and tests are not executed, and no files are modified. "
+    "Model conclusions still need checking and are not a release-safety guarantee."
 )
 
 
@@ -167,9 +169,14 @@ class RunAuthorization:
 
 
 def save_report(directory_fd, name, text):
-    fd = os.open(
-        name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory_fd
-    )
+    if isinstance(directory_fd, Path):
+        from reviewflow.backend.nofollow import open_exclusive
+
+        fd = open_exclusive(directory_fd / name)
+    else:
+        fd = os.open(
+            name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory_fd
+        )
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
         stream.write(text)
         stream.flush()
@@ -178,11 +185,11 @@ def save_report(directory_fd, name, text):
 
 def document_text(document, fmt):
     # The workflow renderer handles model text escaping; accounting is trusted metadata.
-    prefix = "# ReviewFlow 真实开发审查\n\n" if fmt == "markdown" else ""
+    prefix = "# ReviewFlow live development review\n\n" if fmt == "markdown" else ""
     prefix += (
-        f"请求尝试: {document['accounting']['requests_attempted']} / "
-        f"{document['preview']['run_limits']['max_calls']}；"
-        f"费用: 未知；源码快照未变: {document['source_snapshot_unchanged']}\n\n"
+        f"Requests attempted: {document['accounting']['requests_attempted']} / "
+        f"{document['preview']['run_limits']['max_calls']}; "
+        f"cost: unknown; source snapshot unchanged: {document['source_snapshot_unchanged']}\n\n"
     )
     return prefix + document["rendered_report"]
 
@@ -231,7 +238,9 @@ def run_live(args):
         gateway = WorkflowGateway(source, inventory, transport, adapter.body_size, authorize)
         destination = Path(preview["output"])
         destination.mkdir(mode=0o700)  # Exclusive: approval replay cannot overwrite an old run.
-        directory_fd = os.open(destination, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        from reviewflow.backend.nofollow import open_directory
+
+        directory_fd = open_directory(destination)
         result = run_interactive_review(
             source,
             inventory,
@@ -293,7 +302,7 @@ def run_live(args):
                     {**document, "rendered_report": render_review(report, args.format)}, args.format
                 )
             )
-            print(f"报告目录: {destination}")
+            print(f"Report directory: {destination}")
         return 0 if report.status == "complete" else 1
     except (ValueError, OSError, CollectionError, InvalidInputError):
         print(
@@ -305,4 +314,6 @@ def run_live(args):
         return 2
     finally:
         if directory_fd is not None:
-            os.close(directory_fd)
+            from reviewflow.backend.nofollow import close_directory
+
+            close_directory(directory_fd)

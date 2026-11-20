@@ -71,6 +71,24 @@ def test_collection_error_exit_1_no_report(tmp_path, capsys, monkeypatch):
     assert "fixture read failure" in captured.err
 
 
+def test_root_resolve_permission_denied_exits_1(tmp_path, capsys, monkeypatch):
+    target = tmp_path / "locked"
+    target.mkdir()
+    original = Path.resolve
+
+    def deny(self, *args, **kwargs):
+        if os.path.normcase(os.path.abspath(self)) == os.path.normcase(os.path.abspath(target)):
+            raise PermissionError("permission denied")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", deny)
+    assert main(["inspect", str(target), "--source", "directory"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Cannot resolve input directory." in captured.err
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Windows rejects newline characters in file names")
 def test_markdown_escapes_paths(tmp_path, capsys):
     name = "a|`<script>\nnext.py"
     (tmp_path / name).write_bytes(b"x")

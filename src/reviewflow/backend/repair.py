@@ -43,8 +43,9 @@ class CheckedPatch:
 def editable(path: str) -> bool:
     parts = PurePosixPath(path.lower()).parts
     name = parts[-1]
+    source = name.endswith(".py") or (name.endswith(".java") and not name.endswith(("test.java", "tests.java")))
     return (
-        name.endswith(".py")
+        source
         and not any(p.startswith(".") for p in parts)
         and not any(p in {"test", "tests", "testing", "migrations"} for p in parts[:-1])
         and not name.startswith("test_")

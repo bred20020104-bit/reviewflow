@@ -11,35 +11,42 @@ from pathlib import Path
 
 from pydantic import SecretStr
 
-from reviewflow.backend.config import ConfigError, ModelConfig, configured
+from reviewflow.backend.config import (
+    ConfigError,
+    ModelConfig,
+    configured,
+    open_regular_nofollow,
+    same_file_snapshot,
+)
 
 MODEL_FIELDS = frozenset({"provider", "api_type", "model", "base_url"})
 PRIVATE_FIELDS = MODEL_FIELDS | {"api_key"}
 ERROR = "Private configuration rejected; check fields, placeholders and owner-only permissions."
 
 
+def _exposed_on_posix(info: os.stat_result) -> bool:
+    """Unix mode bits are meaningful only on POSIX. Windows reports a fixed mode."""
+    if os.name != "posix":
+        return False
+    return bool(info.st_mode & 0o077) or info.st_uid != os.getuid()
+
+
 def _read_private_file(path: Path) -> dict:
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        fd = open_regular_nofollow(path)
         try:
             before = os.fstat(fd)
             if (
                 not stat.S_ISREG(before.st_mode)
-                or before.st_mode & 0o077
-                or before.st_uid != os.getuid()
                 or before.st_nlink != 1
                 or before.st_size > 16384
+                or _exposed_on_posix(before)
             ):
                 raise ValueError()
             with os.fdopen(fd, "rb", closefd=False) as stream:
                 data = stream.read(16385)
             after = os.fstat(fd)
-            if len(data) > 16384 or (
-                before.st_ino,
-                before.st_size,
-                before.st_mtime_ns,
-                before.st_ctime_ns,
-            ) != (after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+            if len(data) > 16384 or not same_file_snapshot(before, after):
                 raise ValueError()
             values = tomllib.loads(data.decode("utf-8"))
             if set(values) not in ({"api_key"}, PRIVATE_FIELDS):

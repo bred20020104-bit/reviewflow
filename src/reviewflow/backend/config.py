@@ -1,5 +1,6 @@
 """Explicit, bounded TOML and private-model loading. No implicit discovery or network."""
 
+import errno
 import json
 import os
 import re
@@ -152,9 +153,30 @@ class LocalSettings(ReviewMessage):
             raise ConfigError("Selected project has no valid included scope") from None
 
 
+def open_regular_nofollow(path: Path) -> int:
+    """Open one regular file. A final symlink is never followed."""
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    elif stat.S_ISLNK(os.lstat(path).st_mode):
+        raise OSError(errno.ELOOP, "Refusing to follow a symlink", os.fspath(path))
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
+    return os.open(os.fspath(path), flags)
+
+
+def same_file_snapshot(before: os.stat_result, after: os.stat_result) -> bool:
+    """True when the open file did not change. Windows fstat creation time can drift."""
+    if before.st_size != after.st_size or before.st_mtime_ns != after.st_mtime_ns:
+        return False
+    if os.name != "posix":
+        return True
+    return before.st_ino == after.st_ino and before.st_ctime_ns == after.st_ctime_ns
+
+
 def read_bounded(path: Path, limit: int = 131072) -> bytes:
     """Reject final symlinks and nonregular files before bounded reading."""
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    fd = open_regular_nofollow(path)
     try:
         before = os.fstat(fd)
         if not stat.S_ISREG(before.st_mode) or before.st_size > limit:
@@ -162,11 +184,7 @@ def read_bounded(path: Path, limit: int = 131072) -> bytes:
         with os.fdopen(fd, "rb", closefd=False) as stream:
             data = stream.read(limit + 1)
         after = os.fstat(fd)
-        if len(data) > limit or (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
-            after.st_size,
-            after.st_mtime_ns,
-            after.st_ctime_ns,
-        ):
+        if len(data) > limit or not same_file_snapshot(before, after):
             raise ValueError("Input changed or exceeds limit")
         return data
     finally:

@@ -13,7 +13,7 @@ from reviewflow.backend.live_repair_cli import _markdown
 
 
 def test_each_run_preserves_diagnostics_and_candidate_association_when_blocked(git_repo, tmp_path):
-    (git_repo / "test_example.py").write_text("def test_example(): assert False\n")
+    (git_repo / "test_example.py").write_bytes(b"def test_example(): assert False\n")
     git(git_repo, "add", "test_example.py")
     git(git_repo, "commit", "-qm", "Synthetic failing test")
     plan, config, profiles, runner, preview, authority = setup_budget(git_repo, tmp_path, cap=32)
@@ -46,7 +46,7 @@ def test_each_run_preserves_diagnostics_and_candidate_association_when_blocked(g
     text = _markdown(result)
     assert "baseline" in text and "candidate" in text and "final" in text
     assert "test_example.py" in text and "permission_error" in text
-    assert "不代表业务缺陷已修复" in text
+    assert "does not mean the business defect is fixed" in text
     assert (git_repo / "a.py").read_text() == "old\n"
 
 
@@ -58,7 +58,7 @@ def test_missing_details_never_claim_failure_improvement(git_repo, tmp_path):
     comparison = result["test_runs"][1].get("comparison")
     assert comparison and comparison["comparable"] is False
     result.update(preview=preview, report_directory="synthetic-report")
-    assert "无法可靠比较" in _markdown(result)
+    assert "cannot be compared reliably" in _markdown(result)
 
 
 def test_markdown_ignores_unknown_target_diagnostic_fields(git_repo, tmp_path):

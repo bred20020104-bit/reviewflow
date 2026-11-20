@@ -1,3 +1,4 @@
+import os
 from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
@@ -160,6 +161,7 @@ def test_read_error_aborts_without_partial_inventory():
         build_inventory(FailingSource({"a.py": b"ok", "b.py": b"fail"}), ScanPolicy())
 
 
+@pytest.mark.skipif(os.name != "posix", reason="mkfifo is not available on Windows")
 def test_fifo_not_included(tmp_path):
     import os
 

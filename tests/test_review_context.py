@@ -1,3 +1,4 @@
+import os
 from dataclasses import replace
 from hashlib import sha256
 
@@ -6,7 +7,7 @@ from review_helpers import evidence, finding, task
 
 from reviewflow.errors import CollectionError
 from reviewflow.models import ScanPolicy
-from reviewflow.review.context import ReviewContext
+from reviewflow.review.context import MAX_EXCERPT_BYTES, MAX_EXCERPT_LINES, ReviewContext
 from reviewflow.review.contracts import EvidenceRef, Finding, ReviewTask, VerificationResult
 from reviewflow.snapshot import build_inventory
 from reviewflow.sources.directory import DirectorySource
@@ -40,6 +41,7 @@ def messages(inventory, **evidence_changes):
     return work, candidate
 
 
+@pytest.mark.skipif(os.name != "posix", reason="Windows rejects newline characters in file names")
 def test_lines_preserve_crlf_and_unicode_names(tmp_path):
     _, _, ctx = setup_context(tmp_path, name="模块\n.py")
     assert ctx.read_lines("模块\n.py", 1, 2) == "first\r\nsecond\n"
@@ -71,7 +73,9 @@ def test_disallowed_paths_rejected_before_read(tmp_path, monkeypatch, path):
         ctx.read_lines(path, 1, 1)
 
 
-@pytest.mark.parametrize("start,end", [(0, 1), (True, 1), ("1", 2), (2, 1), (1, 201)])
+@pytest.mark.parametrize(
+    "start,end", [(0, 1), (True, 1), ("1", 2), (2, 1), (1, MAX_EXCERPT_LINES + 1)]
+)
 def test_invalid_ranges_before_read(tmp_path, monkeypatch, start, end):
     source, _, ctx = setup_context(tmp_path)
     monkeypatch.setattr(source, "read_bytes", lambda *a, **k: pytest.fail("invalid range read"))
@@ -79,14 +83,23 @@ def test_invalid_ranges_before_read(tmp_path, monkeypatch, start, end):
         ctx.read_lines("main.py", start, end)
 
 
-@pytest.mark.parametrize("content,end", [(b"x\n" * 200, 200), (b"x" * 32768, 1)])
+@pytest.mark.parametrize(
+    "content,end",
+    [(b"x\n" * MAX_EXCERPT_LINES, MAX_EXCERPT_LINES), (b"x" * MAX_EXCERPT_BYTES, 1)],
+)
 def test_excerpt_limit_inclusive(tmp_path, content, end):
     _, _, ctx = setup_context(tmp_path, content)
     assert ctx.read_lines("main.py", 1, end) == content.decode()
 
 
 def test_excerpt_byte_limit(tmp_path):
-    _, _, ctx = setup_context(tmp_path, "中".encode() * 10923)
+    content = "中".encode() * (MAX_EXCERPT_BYTES // 3 + 1)
+    (tmp_path / "main.py").write_bytes(content)
+    source = DirectorySource(tmp_path)
+    inventory = build_inventory(
+        source, ScanPolicy(max_file_bytes=len(content), max_total_bytes=len(content))
+    )
+    ctx = ReviewContext(source, inventory)
     with pytest.raises(CollectionError):
         ctx.read_lines("main.py", 1, 1)
 

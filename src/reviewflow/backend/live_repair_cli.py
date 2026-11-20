@@ -1,7 +1,6 @@
 """Explicit CLI approval/report boundary for live development repair."""
 
 import json
-import os
 import sys
 
 from reviewflow.agents.profiles import load_profiles
@@ -44,15 +43,15 @@ def _markdown(document):
         "reviewer_recovery_authorization_stopped", "reviewer_recovery_transport_stopped",
         "reviewer_recovery_stopped", "finding_evidence_not_reviewed",
     }
-    diagnostics = ", ".join(sorted(c for c in codes if c in safe_codes)) or "无"
+    diagnostics = ", ".join(sorted(c for c in codes if c in safe_codes)) or "none"
     recovered = sum(r["status"] == "recovered" for r in recoveries)
     refreshes = document.get("finding_refreshes", [])
     refresh_codes = ", ".join(sorted({r["diagnostic_code"] for r in refreshes
-        if r.get("diagnostic_code") in REFRESH_CODES | EVIDENCE_CODES})) or "无"
+        if r.get("diagnostic_code") in REFRESH_CODES | EVIDENCE_CODES})) or "none"
     resolved = sum(issue.get("status") == "resolved" for r in refreshes for issue in r["issues"])
     dependencies = document.get("dependency_verifications", [])
     dependency_codes = ", ".join(sorted({r["diagnostic_code"] for r in dependencies
-        if r.get("diagnostic_code") in DEPENDENCY_CODES | EVIDENCE_CODES})) or "无"
+        if r.get("diagnostic_code") in DEPENDENCY_CODES | EVIDENCE_CODES})) or "none"
     decided = sum(r.get("status") == "complete" for r in dependencies)
     transport_diagnostics = []
     for record in document["accounting"].get("records", []):
@@ -60,54 +59,64 @@ def _markdown(document):
         if type(code) is not str or code not in SAFE_ERROR_CODES:
             continue
         progress = safe_progress(record.get("transport_progress"))
-        detail = "阶段诊断不可用"
+        detail = "stage diagnostics unavailable"
         if progress is not None:
             event = progress["events"][-1]
-            detail = f"最后完成阶段 {event['stage']}（worker 内 {event['elapsed_ms']} ms）"
-        recovery = "后续重试已恢复" if record.get("retry_status") == "recovered" else "未恢复"
-        transport_diagnostics.append(f"- 传输尝试失败：{code}；{recovery}；{detail}\n")
+            detail = f"last completed stage {event['stage']} ({event['elapsed_ms']} ms inside the worker)"
+        recovery = "a later retry recovered" if record.get("retry_status") == "recovered" else "not recovered"
+        transport_diagnostics.append(f"- Transport attempt failed: {code}; {recovery}; {detail}\n")
     seed_accounting = ""
     cumulative = document.get("cumulative_reported_accounting")
     if cumulative is not None:
         seed_accounting = (
-            "\n## 显式候选续跑\n"
-            "旧候选仅作为未验证源码输入；测试、审查和写回权限均由本轮重新建立。\n"
-            "历史用量由旧报告提供，未经认证；不表示旧调用免费或旧权限重新开放。\n"
-            f"- 累计请求尝试：{cumulative['requests_attempted']}\n"
-            f"- 累计补丁成员尝试：{cumulative['patch_attempts']}\n"
-            "- 累计金额：未知。\n"
+            "\n## Explicit candidate continuation\n"
+            "The old candidate is unverified source input only. "
+            "Tests, review, and write-back authority are created again for this run.\n"
+            "Historical usage comes from the old report and is not certified. "
+            "It does not mean old calls were free or that old permissions were reopened.\n"
+            f"- Cumulative requests attempted: {cumulative['requests_attempted']}\n"
+            f"- Cumulative patch-member attempts: {cumulative['patch_attempts']}\n"
+            "- Cumulative cost: unknown.\n"
         )
     records = document["accounting"].get("records", [])
     retry_count = sum(type(r.get("retry_attempt")) is int and r["retry_attempt"] > 0 for r in records)
     retry_limit = (document["preview"].get("transport_retry") or {}).get("max_retries", 0)
     unknown_usage = sum(r.get("usage") is None for r in records)
     cap = document["preview"]["max_calls"]
-    cap_label = "不设总模型调用次数上限（其他限制仍保留）" if cap is None else str(cap)
+    cap_label = "no total model-call cap (other limits remain)" if cap is None else str(cap)
     return (
-        "# ReviewFlow 自动修复运行报告\n\n"
-        f"- 状态：{document['status']}\n"
-        f"- 请求尝试：{document['accounting']['requests_attempted']} / {cap_label}\n"
-        "- 金额：未知；没有提交、推送或合并。\n"
-        f"- 传输重试：每请求最多 {retry_limit} 次；实际额外尝试 {retry_count} 次，均计入调用次数。\n"
-        f"- 用量未知的尝试：{unknown_usage} 次；重试成功也不代表先前请求免费或用量完整。\n"
-        f"- 报告目录：`{document['report_directory']}`\n"
-        f"- 候选目录：`{document['candidate_path']}`\n"
-        f"- 失败阶段：{document.get('failure_stage', '无')}\n"
-        f"- 仅测试模式：{document.get('tests_only', False)}\n"
-        f"- 证据诊断（含已恢复的原始错误）：{diagnostics}\n"
-        f"- 复核纠错：{len(recoveries)} 条记录；恢复成功：{recovered}\n"
-        f"- 审查纠错：{len(reviewer_recoveries)} 条记录；恢复成功："
+        "# ReviewFlow automated repair report\n\n"
+        f"- Status: {document['status']}\n"
+        f"- Requests attempted: {document['accounting']['requests_attempted']} / {cap_label}\n"
+        "- Cost: unknown. Nothing was committed, pushed, or merged.\n"
+        f"- Transport retries: at most {retry_limit} per request; "
+        f"{retry_count} extra attempts were made, and each counts as a call.\n"
+        f"- Attempts with unknown usage: {unknown_usage}. "
+        "A successful retry does not make the earlier request free or its usage complete.\n"
+        f"- Report directory: `{document['report_directory']}`\n"
+        f"- Candidate directory: `{document['candidate_path']}`\n"
+        f"- Failure stage: {document.get('failure_stage', 'none')}\n"
+        f"- Tests only: {document.get('tests_only', False)}\n"
+        f"- Evidence diagnostics (including recovered original errors): {diagnostics}\n"
+        f"- Verification recovery: {len(recoveries)} records; recovered: {recovered}\n"
+        f"- Reviewer recovery: {len(reviewer_recoveries)} records; recovered: "
         f"{sum(r.get('status') == 'recovered' for r in reviewer_recoveries)}\n"
-        f"- 跨批依赖复核：{len(dependencies)} 次尝试；独立明确结论：{decided}；诊断：{dependency_codes}\n"
-        "依赖读取不扩大审查覆盖或修改权限；原始 unresolved 与有效复核结果分别保留于 report.json。\n"
-        f"- 补丁后重新审查：{len(refreshes)} 轮；静态确认消除：{resolved} 条；诊断：{refresh_codes}\n"
-        "旧发现只有经新证据审查和独立复核后才退出队列；静态消除不代表整轮修复成功。\n\n"
-        "验证对象为 HEAD 加候选补丁，不包含原工作区未提交内容。"
-        "语义审查只覆盖审批选定源码；测试范围为全部可发现的已提交测试。"
-        "不保留单测数量和原始日志，不声称逐项缺陷已有动态复现。\n\n"
-        "`report.json` 保存初审、独立复核、补丁尝试、容器退出状态、最终复审和写回结果。"
-        "`candidate.diff` 是经所有权检查的候选差异，不代表 blocked 状态已写回原仓库。"
-        "出现 partial_application 时保留两处工作区，需要人工检查，不自动清理。\n"
+        f"- Cross-batch dependency checks: {len(dependencies)} attempts; "
+        f"independent decisions: {decided}; diagnostics: {dependency_codes}\n"
+        "Reading a dependency does not widen review coverage or edit permission. "
+        "The original unresolved result and the effective recheck stay in report.json.\n"
+        f"- Review after patches: {len(refreshes)} rounds; "
+        f"statically confirmed removed: {resolved}; diagnostics: {refresh_codes}\n"
+        "An old finding leaves the queue only after a new evidence review and an independent check. "
+        "Static removal does not mean the whole repair succeeded.\n\n"
+        "Validation covers HEAD plus the candidate patch, not uncommitted content in the original workspace. "
+        "Semantic review covers only the approved source. Tests cover every discoverable committed test. "
+        "Individual test counts and raw logs are not retained, and no claim is made that every defect was reproduced dynamically.\n\n"
+        "`report.json` stores the initial review, independent verification, patch attempts, "
+        "container exit status, final review, and write-back result. "
+        "`candidate.diff` is the ownership-checked candidate diff. "
+        "A blocked status does not mean it was written back to the original repository. "
+        "On partial_application both workspaces are kept for manual inspection and are not cleaned up automatically.\n"
         + "".join(transport_diagnostics)
         + seed_accounting
         + render_test_runs(document["test_runs"])
@@ -155,7 +164,9 @@ def run_live_repair(args):
         if (parent.st_dev, parent.st_ino) != plan.storage_identity:
             raise ValueError("Report parent changed")
         output.mkdir(mode=0o700)
-        directory_fd = os.open(output, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        from reviewflow.backend.nofollow import open_directory
+
+        directory_fd = open_directory(output)
         adapter = (None if args.tests_only else
                    ResponsesAdapter(config.model, lambda: resolve_key_file(args.config, config.model)))
         document = run_repair_session(plan, config, authority, profiles, runner, adapter, seed=seed)
@@ -175,4 +186,6 @@ def run_live_repair(args):
         return 2
     finally:
         if directory_fd is not None:
-            os.close(directory_fd)
+            from reviewflow.backend.nofollow import close_directory
+
+            close_directory(directory_fd)
